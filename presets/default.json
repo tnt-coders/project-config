@@ -2,7 +2,7 @@
   "version": 7,
   "configurePresets": [
     {
-      "name": "base-debug",
+      "name": "default-debug",
       "displayName": "Debug",
       "description": "Default settings for debug build configuration",
       "binaryDir": "${sourceDir}/build/debug",
@@ -11,7 +11,7 @@
       }
     },
     {
-      "name": "base-release",
+      "name": "default-release",
       "displayName": "Release",
       "description": "Defaule settings for release build configuration",
       "binaryDir": "${sourceDir}/build/release",
@@ -22,25 +22,25 @@
   ],
   "buildPresets": [
     {
-      "name": "base-debug",
-      "configurePreset": "base-debug",
+      "name": "default-debug",
+      "configurePreset": "default-debug",
       "configuration": "Debug"
     },
     {
-      "name": "base-release",
-      "configurePreset": "base-release",
+      "name": "default-release",
+      "configurePreset": "default-release",
       "configuration": "Release"
     }
   ],
   "testPresets": [
     {
-      "name": "base-debug",
-      "configurePreset": "base-debug",
+      "name": "default-debug",
+      "configurePreset": "default-debug",
       "configuration": "Debug"
     },
     {
-      "name": "base-release",
-      "configurePreset": "base-release",
+      "name": "default-release",
+      "configurePreset": "default-release",
       "configuration": "Release"
     }
   ]
