@@ -32,7 +32,7 @@ Provides Conan package manager integration via [cmake-conan](https://github.com/
 
 Include the desired preset files in your project's `CMakePresets.json` and inherit from them.
 
-### Basic Example (without Conan)
+### Basic Example
 
 ```json
 {
