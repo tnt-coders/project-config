@@ -7,21 +7,21 @@ Reusable project configuration and CMake preset can be shared across projects vi
 Add this repository as a submodule in your project root:
 
 ```bash
-git submodule add https://github.com/tnt-coders/cmake-config.git
+git submodule add https://github.com/tnt-coders/project-config.git
 ```
 
 The submodule must be checked out before CMake configuration runs, since `CMakePresets.json` includes are resolved at configure time.
 
 ## Available Presets
 
-### `presets/default.json`
+### `cmake-presets/default.json`
 
 Provides base configure, build, and test presets for debug and release configurations:
 
 - `default-debug` - Debug build with output in `build/debug`
 - `default-release` - Release build with output in `build/release`
 
-### `presets/conan.json`
+### `cmake-presets/conan.json`
 
 Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan):
 
@@ -38,7 +38,7 @@ Include the desired preset files in your project's `CMakePresets.json` and inher
 {
   "version": 7,
   "include": [
-    "cmake-config/presets/default.json"
+    "project-config/cmake-presets/default.json"
   ],
   "configurePresets": [
     {
@@ -81,8 +81,8 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
 {
   "version": 7,
   "include": [
-    "cmake-config/presets/default.json",
-    "cmake-config/presets/conan.json"
+    "project-config/cmake-presets/default.json",
+    "project-config/cmake-presets/conan.json"
   ],
   "configurePresets": [
     {
