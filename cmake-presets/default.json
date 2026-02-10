@@ -1,49 +1,49 @@
 {
-  "version": 7,
-  "configurePresets": [
-    {
-      "name": "default-debug",
-      "hidden": true,
-      "displayName": "Debug",
-      "description": "Default settings for debug build configuration",
-      "binaryDir": "${sourceDir}/build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    },
-    {
-      "name": "default-release",
-      "hidden": true,
-      "displayName": "Release",
-      "description": "Defaule settings for release build configuration",
-      "binaryDir": "${sourceDir}/build/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "default-debug",
-      "hidden": true,
-      "configuration": "Debug"
-    },
-    {
-      "name": "default-release",
-      "hidden": true,
-      "configuration": "Release"
-    }
-  ],
-  "testPresets": [
-    {
-      "name": "default-debug",
-      "hidden": true,
-      "configuration": "Debug"
-    },
-    {
-      "name": "default-release",
-      "hidden": true,
-      "configuration": "Release"
-    }
-  ]
+    "version": 7,
+    "configurePresets": [
+        {
+            "name": "default-debug",
+            "hidden": true,
+            "displayName": "Debug",
+            "description": "Default settings for debug build configuration",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "default-release",
+            "hidden": true,
+            "displayName": "Release",
+            "description": "Defaule settings for release build configuration",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "default-debug",
+            "hidden": true,
+            "configuration": "Debug"
+        },
+        {
+            "name": "default-release",
+            "hidden": true,
+            "configuration": "Release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "default-debug",
+            "hidden": true,
+            "configuration": "Debug"
+        },
+        {
+            "name": "default-release",
+            "hidden": true,
+            "configuration": "Release"
+        }
+    ]
 }

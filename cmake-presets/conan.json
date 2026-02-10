@@ -1,47 +1,51 @@
 {
-  "version": 7,
-  "configurePresets": [
-    {
-      "name": "conan-debug",
-      "hidden": true,
-      "description": "Conan settings for debug build configuration",
-      "cacheVariables": {
-        "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
-        "CONAN_INSTALL_ARGS": "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing",
-        "CONAN_INSTALL_BUILD_CONFIGURATIONS": "Debug",
-        "QT_CREATOR_SKIP_PACKAGE_MANAGER_SETUP": true
-      }
-    },
-    {
-      "name": "conan-release",
-      "hidden": true,
-      "description": "Conan settings for release build configuration",
-      "cacheVariables": {
-        "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
-        "CONAN_INSTALL_ARGS": "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing",
-        "CONAN_INSTALL_BUILD_CONFIGURATIONS": "Release",
-        "QT_CREATOR_SKIP_PACKAGE_MANAGER_SETUP": true
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "conan-debug",
-      "hidden": true
-    },
-    {
-      "name": "conan-release",
-      "hidden": true
-    }
-  ],
-  "testPresets": [
-    {
-      "name": "conan-debug",
-      "hidden": true
-    },
-    {
-      "name": "conan-release",
-      "hidden": true
-    }
-  ]
+    "version": 7,
+    "configurePresets": [
+        {
+            "name": "conan-debug",
+            "hidden": true,
+            "description": "Conan settings for debug build configuration",
+            "cacheVariables": {
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES":
+                    "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
+                "CONAN_INSTALL_ARGS":
+                    "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing",
+                "CONAN_INSTALL_BUILD_CONFIGURATIONS": "Debug",
+                "QT_CREATOR_SKIP_PACKAGE_MANAGER_SETUP": true
+            }
+        },
+        {
+            "name": "conan-release",
+            "hidden": true,
+            "description": "Conan settings for release build configuration",
+            "cacheVariables": {
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES":
+                    "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
+                "CONAN_INSTALL_ARGS":
+                    "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing",
+                "CONAN_INSTALL_BUILD_CONFIGURATIONS": "Release",
+                "QT_CREATOR_SKIP_PACKAGE_MANAGER_SETUP": true
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "conan-debug",
+            "hidden": true
+        },
+        {
+            "name": "conan-release",
+            "hidden": true
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "conan-debug",
+            "hidden": true
+        },
+        {
+            "name": "conan-release",
+            "hidden": true
+        }
+    ]
 }
