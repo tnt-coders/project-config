@@ -1,7 +1,5 @@
 # project-config
 
-[![Build](https://github.com/tnt-coders/project-config/actions/workflows/build.yml/badge.svg)](https://github.com/tnt-coders/project-config/actions/workflows/build.yml)
-
 Reusable project configuration and CMake preset can be shared across projects via Git submodules.
 
 ## Setup
@@ -45,31 +43,51 @@ Include the desired preset files in your project's `CMakePresets.json` and inher
   "configurePresets": [
     {
       "name": "debug",
-      "inherits": ["default-debug"]
+      "inherits": [
+        "default-debug"
+      ]
     },
     {
       "name": "release",
-      "inherits": ["default-release"]
+      "inherits": [
+        "default-release"
+      ]
     }
   ],
   "buildPresets": [
     {
       "name": "debug",
-      "inherits": ["default-debug"]
+      "hidden": true,
+      "configurePreset": "debug",
+      "inherits": [
+        "default-debug"
+      ]
     },
     {
       "name": "release",
-      "inherits": ["default-release"]
+      "hidden": true,
+      "configurePreset": "release",
+      "inherits": [
+        "default-release"
+      ]
     }
   ],
   "testPresets": [
     {
       "name": "debug",
-      "inherits": ["default-debug"]
+      "hidden": true,
+      "configurePreset": "debug",
+      "inherits": [
+        "default-debug"
+      ]
     },
     {
       "name": "release",
-      "inherits": ["default-release"]
+      "hidden": true,
+      "configurePreset": "release",
+      "inherits": [
+        "default-release"
+      ]
     }
   ]
 }
@@ -89,31 +107,57 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
   "configurePresets": [
     {
       "name": "debug",
-      "inherits": ["default-debug", "conan-debug"]
+      "inherits": [
+        "default-debug",
+        "conan-debug"
+      ]
     },
     {
       "name": "release",
-      "inherits": ["default-release", "conan-release"]
+      "inherits": [
+        "default-release",
+        "conan-release"
+      ]
     }
   ],
   "buildPresets": [
     {
       "name": "debug",
-      "inherits": ["default-debug", "conan-debug"]
+      "hidden": true,
+      "configurePreset": "debug",
+      "inherits": [
+        "default-debug",
+        "conan-debug"
+      ]
     },
     {
       "name": "release",
-      "inherits": ["default-release", "conan-release"]
+      "hidden": true,
+      "configurePreset": "release",
+      "inherits": [
+        "default-release",
+        "conan-release"
+      ]
     }
   ],
   "testPresets": [
     {
       "name": "debug",
-      "inherits": ["default-debug", "conan-debug"]
+      "hidden": true,
+      "configurePreset": "debug",
+      "inherits": [
+        "default-debug",
+        "conan-debug"
+      ]
     },
     {
       "name": "release",
-      "inherits": ["default-release", "conan-release"]
+      "hidden": true,
+      "configurePreset": "release",
+      "inherits": [
+        "default-release",
+        "conan-release"
+      ]
     }
   ]
 }
