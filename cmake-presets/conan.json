@@ -27,21 +27,21 @@
   "buildPresets": [
     {
       "name": "conan-debug",
-      "configurePreset": "conan-debug"
+      "hidden": true
     },
     {
       "name": "conan-release",
-      "configurePreset": "conan-release"
+      "hidden": true
     }
   ],
   "testPresets": [
     {
       "name": "conan-debug",
-      "configurePreset": "conan-debug"
+      "hidden": true
     },
     {
       "name": "conan-release",
-      "configurePreset": "conan-release"
+      "hidden": true
     }
   ]
 }

@@ -25,24 +25,24 @@
   "buildPresets": [
     {
       "name": "default-debug",
-      "configurePreset": "default-debug",
+      "hidden": true,
       "configuration": "Debug"
     },
     {
       "name": "default-release",
-      "configurePreset": "default-release",
+      "hidden": true,
       "configuration": "Release"
     }
   ],
   "testPresets": [
     {
       "name": "default-debug",
-      "configurePreset": "default-debug",
+      "hidden": true,
       "configuration": "Debug"
     },
     {
       "name": "default-release",
-      "configurePreset": "default-release",
+      "hidden": true,
       "configuration": "Release"
     }
   ]
