@@ -2,8 +2,14 @@
   "version": 7,
   "configurePresets": [
     {
+      "name": "default-base",
+      "hidden": true,
+      "generator": "Ninja"
+    },
+    {
       "name": "default-debug",
       "hidden": true,
+      "inherits": [ "default-base" ],
       "displayName": "Debug",
       "description": "Default settings for debug build configuration",
       "binaryDir": "${sourceDir}/build/debug",
@@ -14,6 +20,7 @@
     {
       "name": "default-release",
       "hidden": true,
+      "inherits": [ "default-base" ],
       "displayName": "Release",
       "description": "Defaule settings for release build configuration",
       "binaryDir": "${sourceDir}/build/release",
