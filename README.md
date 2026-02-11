@@ -57,7 +57,6 @@ Include the desired preset files in your project's `CMakePresets.json` and inher
   "buildPresets": [
     {
       "name": "debug",
-      "hidden": true,
       "configurePreset": "debug",
       "inherits": [
         "default-debug"
@@ -65,7 +64,6 @@ Include the desired preset files in your project's `CMakePresets.json` and inher
     },
     {
       "name": "release",
-      "hidden": true,
       "configurePreset": "release",
       "inherits": [
         "default-release"
@@ -75,7 +73,6 @@ Include the desired preset files in your project's `CMakePresets.json` and inher
   "testPresets": [
     {
       "name": "debug",
-      "hidden": true,
       "configurePreset": "debug",
       "inherits": [
         "default-debug"
@@ -83,7 +80,6 @@ Include the desired preset files in your project's `CMakePresets.json` and inher
     },
     {
       "name": "release",
-      "hidden": true,
       "configurePreset": "release",
       "inherits": [
         "default-release"
@@ -123,7 +119,6 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
   "buildPresets": [
     {
       "name": "debug",
-      "hidden": true,
       "configurePreset": "debug",
       "inherits": [
         "default-debug",
@@ -132,7 +127,6 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
     },
     {
       "name": "release",
-      "hidden": true,
       "configurePreset": "release",
       "inherits": [
         "default-release",
@@ -143,7 +137,6 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
   "testPresets": [
     {
       "name": "debug",
-      "hidden": true,
       "configurePreset": "debug",
       "inherits": [
         "default-debug",
@@ -152,7 +145,6 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
     },
     {
       "name": "release",
-      "hidden": true,
       "configurePreset": "release",
       "inherits": [
         "default-release",
