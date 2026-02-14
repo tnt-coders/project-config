@@ -31,20 +31,6 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
-        },
-        {
-            "name": "default-clang-tidy",
-            "hidden": true,
-            "inherits": [
-                "default-release"
-            ],
-            "displayName": "Clang-Tidy",
-            "description": "Release build with compile commands for clang-tidy",
-            "binaryDir": "${sourceDir}/build/clang-tidy",
-            "cacheVariables": {
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_CXX_CLANG_TIDY": "clang-tidy"
-            }
         }
     ],
     "buildPresets": [
