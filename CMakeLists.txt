@@ -2,7 +2,9 @@
 find_program(RUN_CLANG_TIDY_PROGRAM run-clang-tidy)
 
 if(RUN_CLANG_TIDY_PROGRAM AND EXISTS "${CMAKE_SOURCE_DIR}/.clang-tidy")
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS
+        ON
+        CACHE BOOL "Generate compile_commands.json for clang-tidy" FORCE)
 
     # On Windows, run-clang-tidy is a Python script that can't be executed directly
     set(RUN_CLANG_TIDY_COMMAND "${RUN_CLANG_TIDY_PROGRAM}")
