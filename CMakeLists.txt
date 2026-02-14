@@ -25,4 +25,6 @@ if(RUN_CLANG_TIDY_PROGRAM AND EXISTS "${CMAKE_SOURCE_DIR}/.clang-tidy")
         COMMAND ${RUN_CLANG_TIDY_COMMAND} -p "${CMAKE_BINARY_DIR}" -fix
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Running clang-tidy with fixes")
+else()
+    message(STATUS "run-clang-tidy or .clang-tidy not found, skipping clang-tidy targets")
 endif()
