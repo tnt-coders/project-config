@@ -1,3 +1,18 @@
+# Find doxygen
+find_package(Doxygen QUIET)
+
+# If docs exist for the current project and doxygen is found, add docs target
+if (DOXYGEN_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/docs/Doxyfile")
+add_custom_target(
+        docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM)
+else()
+    message(STATUS "Project-Config: doxygen or docs/Doxyfile not found, skipping docs target")
+endif()
+
 # Find clang-tidy
 find_program(RUN_CLANG_TIDY_PROGRAM run-clang-tidy)
 
@@ -13,6 +28,7 @@ if(RUN_CLANG_TIDY_PROGRAM AND EXISTS "${CMAKE_SOURCE_DIR}/.clang-tidy")
         find_package(
             Python3
             COMPONENTS Interpreter
+            QUIET
             REQUIRED)
         set(RUN_CLANG_TIDY_COMMAND "${Python3_EXECUTABLE}" "${RUN_CLANG_TIDY_PROGRAM}")
     endif()
@@ -45,5 +61,5 @@ if(RUN_CLANG_TIDY_PROGRAM AND EXISTS "${CMAKE_SOURCE_DIR}/.clang-tidy")
         COMMENT "Running clang-tidy with fixes"
         USES_TERMINAL)
 else()
-    message(STATUS "run-clang-tidy or .clang-tidy not found, skipping clang-tidy targets")
+    message(STATUS "Project-Config: run-clang-tidy or .clang-tidy not found, skipping clang-tidy targets")
 endif()
