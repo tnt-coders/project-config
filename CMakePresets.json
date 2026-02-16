@@ -1,0 +1,52 @@
+{
+    "version": 7,
+    "include": [
+        "project-config/cmake-presets/default.json"
+    ],
+    "configurePresets": [
+        {
+            "name": "debug",
+            "inherits": [
+                "default-debug"
+            ]
+        },
+        {
+            "name": "release",
+            "inherits": [
+                "default-release"
+            ]
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "inherits": [
+                "default-debug"
+            ]
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "inherits": [
+                "default-release"
+            ]
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "inherits": [
+                "default-debug"
+            ]
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "inherits": [
+                "default-release"
+            ]
+        }
+    ]
+}
