@@ -1,7 +1,7 @@
 {
     "version": 7,
     "include": [
-        "project-config/cmake-presets/default.json"
+        "cmake-presets/default.json"
     ],
     "configurePresets": [
         {
