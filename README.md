@@ -1,6 +1,7 @@
 # project-config
 
-[![Verify](https://github.com/tnt-coders/project-config/actions/workflows/verify.yml/badge.svg)](https://github.com/tnt-coders/project-config/actions/workflows/verify.yml)
+[![Pre-Commit](https://github.com/tnt-coders/project-config/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/tnt-coders/project-config/actions/workflows/pre-commit.yml)
+[![Build](https://github.com/tnt-coders/project-config/actions/workflows/build.yml/badge.svg)](https://github.com/tnt-coders/project-config/actions/workflows/build.yml)
 
 Reusable project configuration and CMake preset can be shared across projects via Git submodules.
 
