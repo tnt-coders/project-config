@@ -4,6 +4,14 @@
 
 Reusable project configuration and CMake preset can be shared across projects via Git submodules.
 
+## Shared Doxygen Theme
+
+`project-config` includes `doxygen-awesome-css` as a submodule at:
+
+`doxygen-awesome-css`
+
+Projects that use `project-config/CMakeLists.txt` docs target logic will use this stylesheet automatically when generating Doxygen docs from `docs/Doxyfile.in`.
+
 ## Setup
 
 Add this repository as a submodule in your project root:
