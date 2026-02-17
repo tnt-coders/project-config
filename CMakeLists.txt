@@ -19,27 +19,27 @@ if(PROJECT_CONFIG_ENABLE_DOCS)
         elseif(EXISTS "${DOXYFILE_STATIC_PATH}")
             set(DOXYFILE "${DOXYFILE_STATIC_PATH}")
             message(STATUS "Project-Config: using docs/Doxyfile for docs target")
-        else()
-            message(
-                FATAL_ERROR "Project-Config: Failed to enable docs, no Doxyfile configuration found"
-            )
         endif()
 
-        # If dot is found, enable diagrams
-        if(Doxygen_dot_FOUND)
-            set(DOXYGEN_HAVE_DOT "YES")
-            message(STATUS "Project-Config: Graphviz dot found, enabling diagrams")
-        else()
-            set(DOXYGEN_HAVE_DOT "NO")
-            message(STATUS "Project-Config: Graphviz dot not found, disabling diagrams")
-        endif()
+        if(DOXYFILE)
+            # If dot is found, enable diagrams
+            if(Doxygen_dot_FOUND)
+                set(DOXYGEN_HAVE_DOT "YES")
+                message(STATUS "Project-Config: Graphviz dot found, enabling diagrams")
+            else()
+                set(DOXYGEN_HAVE_DOT "NO")
+                message(STATUS "Project-Config: Graphviz dot not found, disabling diagrams")
+            endif()
 
-        add_custom_target(
-            docs
-            COMMAND ${DOXYGEN_EXECUTABLE} "${DOXYFILE}"
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            COMMENT "Generating API documentation with Doxygen"
-            VERBATIM)
+            add_custom_target(
+                docs
+                COMMAND ${DOXYGEN_EXECUTABLE} "${DOXYFILE}"
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                COMMENT "Generating API documentation with Doxygen"
+                VERBATIM)
+        else()
+            message(WARNING "Project-Config: no Doxyfile configuration found, skipping docs target")
+        endif()
     else()
         message(STATUS "Project-Config: doxygen not found, skipping docs target")
     endif()
@@ -55,55 +55,53 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
     if(RUN_CLANG_TIDY_PROGRAM)
         message(STATUS "Project-Config: run-clang-tidy found, enabling clang-tidy targets")
 
-        if(NOT EXISTS "${CMAKE_SOURCE_DIR}/.clang-tidy")
-            message(
-                FATAL_ERROR
-                    "Project-Config: Failed to enable clang-tidy, no .clang-tidy configuration found"
-            )
-        endif()
+        if(EXISTS "${CMAKE_SOURCE_DIR}/.clang-tidy")
+            set(CMAKE_EXPORT_COMPILE_COMMANDS
+                ON
+                CACHE BOOL "Generate compile_commands.json for clang-tidy" FORCE)
 
-        set(CMAKE_EXPORT_COMPILE_COMMANDS
-            ON
-            CACHE BOOL "Generate compile_commands.json for clang-tidy" FORCE)
-
-        # On Windows, run-clang-tidy is a Python script that can't be executed directly
-        set(RUN_CLANG_TIDY_COMMAND "${RUN_CLANG_TIDY_PROGRAM}")
-        if(WIN32)
-            find_package(
-                Python3
-                COMPONENTS Interpreter
-                QUIET REQUIRED)
-            set(RUN_CLANG_TIDY_COMMAND "${Python3_EXECUTABLE}" "${RUN_CLANG_TIDY_PROGRAM}")
-        endif()
-
-        # On Apple platforms, Homebrew LLVM's clang-tidy needs the SDK sysroot to find system
-        # headers
-        set(CLANG_TIDY_EXTRA_ARGS "")
-        if(APPLE)
-            execute_process(
-                COMMAND xcrun --show-sdk-path
-                OUTPUT_VARIABLE APPLE_SDK_PATH
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-            if(APPLE_SDK_PATH)
-                set(CLANG_TIDY_EXTRA_ARGS "-extra-arg=--sysroot=${APPLE_SDK_PATH}")
+            # On Windows, run-clang-tidy is a Python script that can't be executed directly
+            set(RUN_CLANG_TIDY_COMMAND "${RUN_CLANG_TIDY_PROGRAM}")
+            if(WIN32)
+                find_package(
+                    Python3
+                    COMPONENTS Interpreter
+                    QUIET REQUIRED)
+                set(RUN_CLANG_TIDY_COMMAND "${Python3_EXECUTABLE}" "${RUN_CLANG_TIDY_PROGRAM}")
             endif()
+
+            # On Apple platforms, Homebrew LLVM's clang-tidy needs the SDK sysroot to find system
+            # headers
+            set(CLANG_TIDY_EXTRA_ARGS "")
+            if(APPLE)
+                execute_process(
+                    COMMAND xcrun --show-sdk-path
+                    OUTPUT_VARIABLE APPLE_SDK_PATH
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+                if(APPLE_SDK_PATH)
+                    set(CLANG_TIDY_EXTRA_ARGS "-extra-arg=--sysroot=${APPLE_SDK_PATH}")
+                endif()
+            endif()
+
+            # Add a target to run clang-tidy
+            add_custom_target(
+                clang-tidy
+                COMMAND ${RUN_CLANG_TIDY_COMMAND} -p "${CMAKE_BINARY_DIR}" ${CLANG_TIDY_EXTRA_ARGS}
+                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                COMMENT "Running clang-tidy"
+                USES_TERMINAL)
+
+            # Add a target to run clang-tidy and apply fixes
+            add_custom_target(
+                clang-tidy-fix
+                COMMAND ${RUN_CLANG_TIDY_COMMAND} -p "${CMAKE_BINARY_DIR}" ${CLANG_TIDY_EXTRA_ARGS}
+                        -fix
+                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                COMMENT "Running clang-tidy with fixes"
+                USES_TERMINAL)
+        else()
+            message(WARNING "Project-Config: no .clang-tidy found, skipping clang-tidy targets")
         endif()
-
-        # Add a target to run clang-tidy
-        add_custom_target(
-            clang-tidy
-            COMMAND ${RUN_CLANG_TIDY_COMMAND} -p "${CMAKE_BINARY_DIR}" ${CLANG_TIDY_EXTRA_ARGS}
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-            COMMENT "Running clang-tidy"
-            USES_TERMINAL)
-
-        # Add a target to run clang-tidy and apply fixes
-        add_custom_target(
-            clang-tidy-fix
-            COMMAND ${RUN_CLANG_TIDY_COMMAND} -p "${CMAKE_BINARY_DIR}" ${CLANG_TIDY_EXTRA_ARGS} -fix
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-            COMMENT "Running clang-tidy with fixes"
-            USES_TERMINAL)
     else()
         message(STATUS "Project-Config: run-clang-tidy not found, skipping clang-tidy targets")
     endif()
