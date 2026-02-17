@@ -13,17 +13,16 @@ if(PROJECT_CONFIG_ENABLE_DOCS)
 
         if(EXISTS "${DOXYFILE_TEMPLATE_PATH}")
             # Prefer template-based Doxygen config when available.
-            configure_file(
-                "${DOXYFILE_TEMPLATE_PATH}"
-                "${CMAKE_BINARY_DIR}/Doxyfile"
-                @ONLY)
+            configure_file("${DOXYFILE_TEMPLATE_PATH}" "${CMAKE_BINARY_DIR}/Doxyfile" @ONLY)
             set(DOXYFILE "${CMAKE_BINARY_DIR}/Doxyfile")
             message(STATUS "Project-Config: using docs/Doxyfile.in for docs target")
         elseif(EXISTS "${DOXYFILE_STATIC_PATH}")
             set(DOXYFILE "${DOXYFILE_STATIC_PATH}")
             message(STATUS "Project-Config: using docs/Doxyfile for docs target")
         else()
-            message(FATAL_ERROR "Project-Config: Failed to enable docs, no Doxyfile configuration found")
+            message(
+                FATAL_ERROR "Project-Config: Failed to enable docs, no Doxyfile configuration found"
+            )
         endif()
 
         # If dot is found, enable diagrams
@@ -57,7 +56,10 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
         message(STATUS "Project-Config: run-clang-tidy found, enabling clang-tidy targets")
 
         if(NOT EXISTS "${CMAKE_SOURCE_DIR}/.clang-tidy")
-            message(FATAL_ERROR "Project-Config: Failed to enable clang-tidy, no .clang-tidy configuration found")
+            message(
+                FATAL_ERROR
+                    "Project-Config: Failed to enable clang-tidy, no .clang-tidy configuration found"
+            )
         endif()
 
         set(CMAKE_EXPORT_COMPILE_COMMANDS
@@ -70,12 +72,12 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
             find_package(
                 Python3
                 COMPONENTS Interpreter
-                QUIET
-                REQUIRED)
+                QUIET REQUIRED)
             set(RUN_CLANG_TIDY_COMMAND "${Python3_EXECUTABLE}" "${RUN_CLANG_TIDY_PROGRAM}")
         endif()
 
-        # On Apple platforms, Homebrew LLVM's clang-tidy needs the SDK sysroot to find system headers
+        # On Apple platforms, Homebrew LLVM's clang-tidy needs the SDK sysroot to find system
+        # headers
         set(CLANG_TIDY_EXTRA_ARGS "")
         if(APPLE)
             execute_process(
@@ -106,5 +108,6 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
         message(STATUS "Project-Config: run-clang-tidy not found, skipping clang-tidy targets")
     endif()
 else()
-    message(STATUS "Project-Config: PROJECT_CONFIG_ENABLE_CLANG_TIDY=OFF, skipping clang-tidy targets")
+    message(
+        STATUS "Project-Config: PROJECT_CONFIG_ENABLE_CLANG_TIDY=OFF, skipping clang-tidy targets")
 endif()
