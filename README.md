@@ -41,7 +41,7 @@ option(PROJECT_CONFIG_ENABLE_CLANG_TIDY
 add_subdirectory(project-config)
 ```
 
-### Conan Packages
+### Excluding from Conan Builds
 
 `project-config` is a development-only submodule and should **not** be exported as part of a Conan package. Since it won't be present during Conan builds, gate the `add_subdirectory` call behind an option so it can be disabled:
 
@@ -69,106 +69,9 @@ def generate(self):
 
 ---
 
-## Docs Target
-
-When `PROJECT_CONFIG_ENABLE_DOCS` is `ON` and [Doxygen](https://www.doxygen.nl/) is found, a `docs` target is added that generates API documentation.
-
-### Prerequisites
-
-- Doxygen installed and available on `PATH`
-- A Doxygen configuration file at one of the following locations (checked in order):
-  - `docs/Doxyfile.in` — a CMake template, configured via `configure_file()` with `@ONLY` substitution
-  - `docs/Doxyfile` — a static Doxygen configuration file
-- Optionally, [Graphviz](https://graphviz.org/) `dot` for diagram generation
-
-### Shared Doxygen Theme
-
-`project-config` includes [doxygen-awesome-css](https://github.com/jothepro/doxygen-awesome-css) as a submodule. To use the theme, set the following in your `docs/Doxyfile.in`:
-
-```
-# Use doxygen-awesome-css theme
-HTML_EXTRA_STYLESHEET  = project-config/doxygen-awesome-css/doxygen-awesome.css
-
-# Recommended settings for doxygen-awesome-css
-HTML_COLORSTYLE        = AUTO_LIGHT
-DISABLE_INDEX          = NO
-GENERATE_TREEVIEW      = YES
-PAGE_OUTLINE_PANEL     = YES
-FULL_SIDEBAR           = NO
-```
-
-These settings enable the sidebar navigation tree, a per-page outline panel, and automatic light/dark mode switching based on the user's system preference. The theme is included as part of the `project-config` submodule, so no additional setup is required.
-
-You can also use your `README.md` as the Doxygen main page and pull project metadata from CMake variables:
-
-```
-PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
-PROJECT_BRIEF          = "@CMAKE_PROJECT_DESCRIPTION@"
-OUTPUT_DIRECTORY       = @CMAKE_BINARY_DIR@/docs
-
-INPUT                  = include/mylib \
-                         README.md
-USE_MDFILE_AS_MAINPAGE = README.md
-```
-
-Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` references are replaced with CMake variable values at configure time.
-
-### GitHub Markdown Filter
-
-`project-config` includes a Doxygen input filter at `scripts/doxygen-github-markdown-filter.py` that converts GitHub Flavored Markdown into Doxygen-compatible markup. This is useful when using a repository's `README.md` as the Doxygen main page, since GitHub-specific syntax would otherwise be rendered incorrectly or lost.
-
-The filter handles:
-
-- **GFM admonitions** (`> [!NOTE]`, `> [!WARNING]`, etc.) — converted to Doxygen `@note`, `@warning`, and similar commands
-- **CI badge lines** — stripped out (they show stale status outside GitHub)
-- **Heading anchors** — adds GitHub-style `{#slug}` IDs so fragment links (e.g. `#section-name`) resolve correctly in the generated HTML
-
-To use it, set `FILTER_PATTERNS` in your `Doxyfile.in` to run the script on Markdown files:
-
-```
-FILTER_PATTERNS = *.md="python @CMAKE_SOURCE_DIR@/project-config/scripts/doxygen-github-markdown-filter.py"
-```
-
-Using `FILTER_PATTERNS` rather than `INPUT_FILTER` ensures the filter only runs on Markdown files, leaving source code and other inputs unaffected.
-
-### Usage
-
-```bash
-cmake --build build/debug --target docs
-```
-
----
-
-## Clang-Tidy Targets
-
-When `PROJECT_CONFIG_ENABLE_CLANG_TIDY` is `ON` and `run-clang-tidy` is found, two targets are added:
-
-| Target | Description |
-|--------|-------------|
-| `clang-tidy` | Run clang-tidy on all source files and report diagnostics |
-| `clang-tidy-fix` | Run clang-tidy and automatically apply suggested fixes |
-
-### Prerequisites
-
-- `run-clang-tidy` installed and available on `PATH` (ships with LLVM/Clang)
-- A `.clang-tidy` configuration file at the project root
-- On Windows: Python 3 (used to invoke `run-clang-tidy` which is a Python script)
-
-### Usage
-
-```bash
-cmake --build build/debug --target clang-tidy
-cmake --build build/debug --target clang-tidy-fix
-```
-
-> [!NOTE]
-> `CMAKE_EXPORT_COMPILE_COMMANDS` is automatically set to `ON` when clang-tidy targets are enabled.
-
----
-
 ## Presets
 
-The default presets use the [Ninja](https://ninja-build.org/) generator.
+The default presets use the [Ninja](https://ninja-build.org/) generator. Ninja is used because it natively generates a `compile_commands.json` compilation database on all platforms, which is required by clang-tidy and other tooling. This ensures consistent cross-platform behavior without relying on generator-specific workarounds.
 
 ### `cmake-presets/default.json`
 
@@ -179,7 +82,7 @@ Provides base configure, build, and test presets for debug and release configura
 
 ### `cmake-presets/conan.json`
 
-Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan):
+Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan). Including this preset sets `CMAKE_PROJECT_TOP_LEVEL_INCLUDES` to point to `conan_provider.cmake`, which hooks into CMake's `find_package` calls to automatically run `conan install` during configuration. Dependencies listed in your `conanfile.txt` or `conanfile.py` are resolved transparently — no changes to your `CMakeLists.txt` are required.
 
 - `conan-debug` - Conan settings for debug builds
 - `conan-release` - Conan settings for release builds
@@ -310,3 +213,101 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
   ]
 }
 ```
+
+---
+
+## Docs Target
+
+When `PROJECT_CONFIG_ENABLE_DOCS` is `ON` and [Doxygen](https://www.doxygen.nl/) is found, a `docs` target is added that generates API documentation.
+
+### Prerequisites
+
+- Doxygen installed and available on `PATH`
+- A Doxygen configuration file at one of the following locations (checked in order):
+  - `docs/Doxyfile.in` — a CMake template, configured via `configure_file()` with `@ONLY` substitution
+  - `docs/Doxyfile` — a static Doxygen configuration file
+- Optionally, [Graphviz](https://graphviz.org/) `dot` for diagram generation
+
+### Shared Doxygen Theme
+
+`project-config` includes [doxygen-awesome-css](https://github.com/jothepro/doxygen-awesome-css) as a submodule. To use the theme, set the following in your `docs/Doxyfile.in`:
+
+```
+# Use doxygen-awesome-css theme
+HTML_EXTRA_STYLESHEET  = project-config/doxygen-awesome-css/doxygen-awesome.css
+
+# Recommended settings for doxygen-awesome-css
+HTML_COLORSTYLE        = AUTO_LIGHT
+DISABLE_INDEX          = NO
+GENERATE_TREEVIEW      = YES
+PAGE_OUTLINE_PANEL     = YES
+FULL_SIDEBAR           = NO
+```
+
+These settings enable the sidebar navigation tree, a per-page outline panel, and automatic light/dark mode switching based on the user's system preference. The theme is included as part of the `project-config` submodule, so no additional setup is required.
+
+You can also use your `README.md` as the Doxygen main page and pull project metadata from CMake variables:
+
+```
+PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
+PROJECT_BRIEF          = "@CMAKE_PROJECT_DESCRIPTION@"
+OUTPUT_DIRECTORY       = @CMAKE_BINARY_DIR@/docs
+
+INPUT                  = include/mylib \
+                         README.md
+USE_MDFILE_AS_MAINPAGE = README.md
+```
+
+Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` references are replaced with CMake variable values at configure time.
+
+### GitHub Markdown Filter
+
+`project-config` includes a Doxygen input filter at `scripts/doxygen-github-markdown-filter.py` that converts GitHub Flavored Markdown into Doxygen-compatible markup. This is useful when using a repository's `README.md` as the Doxygen main page, since GitHub-specific syntax would otherwise be rendered incorrectly or lost.
+
+The filter handles:
+
+- **GFM admonitions** (`> [!NOTE]`, `> [!WARNING]`, etc.) — converted to Doxygen `@note`, `@warning`, and similar commands
+- **CI badge lines** — stripped out (they show stale status outside GitHub)
+- **Heading anchors** — adds GitHub-style `{#slug}` IDs so fragment links (e.g. `#section-name`) resolve correctly in the generated HTML
+
+To use it, set `FILTER_PATTERNS` in your `Doxyfile.in` to run the script on Markdown files:
+
+```
+FILTER_PATTERNS = *.md="python @CMAKE_SOURCE_DIR@/project-config/scripts/doxygen-github-markdown-filter.py"
+```
+
+Using `FILTER_PATTERNS` rather than `INPUT_FILTER` ensures the filter only runs on Markdown files, leaving source code and other inputs unaffected.
+
+### Usage
+
+```bash
+cmake --build build/debug --target docs
+```
+
+---
+
+## Clang-Tidy Targets
+
+When `PROJECT_CONFIG_ENABLE_CLANG_TIDY` is `ON` and `run-clang-tidy` is found, two targets are added:
+
+| Target | Description |
+|--------|-------------|
+| `clang-tidy` | Run clang-tidy on all source files and report diagnostics |
+| `clang-tidy-fix` | Run clang-tidy and automatically apply suggested fixes |
+
+### Prerequisites
+
+- `run-clang-tidy` installed and available on `PATH` (ships with LLVM/Clang)
+- A `.clang-tidy` configuration file at the project root
+- A `compile_commands.json` compilation database (automatically generated when using the default [Presets](#presets), which use the Ninja generator)
+- On Windows: Python 3 (used to invoke `run-clang-tidy` which is a Python script)
+
+### Usage
+
+```bash
+cmake --build build/debug --target clang-tidy
+cmake --build build/debug --target clang-tidy-fix
+```
+
+> [!NOTE]
+> `CMAKE_EXPORT_COMPILE_COMMANDS` is automatically set to `ON` when clang-tidy targets are enabled.
