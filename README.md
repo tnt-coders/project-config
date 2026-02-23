@@ -43,7 +43,7 @@ add_subdirectory(project-config)
 
 ### Excluding from Conan Builds
 
-`project-config` is a development-only submodule and should **not** be exported as part of a Conan package. Since it won't be present during Conan builds, gate the `add_subdirectory` call behind an option so it can be disabled:
+`project-config` is a development-only submodule and should **not** be exported as part of a Conan package. If you plan to export your project as a Conan package, gate the `add_subdirectory` call behind an option so it can be disabled during Conan builds:
 
 **CMakeLists.txt:**
 
