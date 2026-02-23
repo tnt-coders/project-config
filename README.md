@@ -2,7 +2,12 @@
 
 [![Build](https://github.com/tnt-coders/project-config/actions/workflows/build.yml/badge.svg)](https://github.com/tnt-coders/project-config/actions/workflows/build.yml)
 
-Reusable project configuration and CMake presets that can be shared across projects via Git submodules.
+Reusable project configuration and CMake presets that can be shared across projects via Git submodules. Bundles two key submodules:
+
+- [**cmake-conan**](https://github.com/tnt-coders/cmake-conan) — A CMake dependency provider for the [Conan](https://conan.io/) C/C++ package manager. Automatically runs `conan install` during CMake configuration so dependencies are resolved without any changes to your `CMakeLists.txt`. Supports building private package recipes directly from Git when packages aren't available on a remote.
+- [**doxygen-awesome-css**](https://github.com/jothepro/doxygen-awesome-css) — A modern, professional theme for [Doxygen](https://www.doxygen.nl/)-generated documentation. Provides a clean responsive layout with dark mode support, code fragment copy buttons, and an interactive table of contents.
+
+By adding `project-config` as a single submodule, your project gains Conan package management, professional documentation, linting targets, and standardized CMake presets with minimal setup.
 
 ## Setup
 
@@ -78,7 +83,35 @@ When `PROJECT_CONFIG_ENABLE_DOCS` is `ON` and [Doxygen](https://www.doxygen.nl/)
 
 ### Shared Doxygen Theme
 
-`project-config` includes [doxygen-awesome-css](https://github.com/jothepro/doxygen-awesome-css) as a submodule. Projects that reference its stylesheet in their Doxygen configuration will get the theme automatically.
+`project-config` includes [doxygen-awesome-css](https://github.com/jothepro/doxygen-awesome-css) as a submodule. To use the theme, set the following in your `docs/Doxyfile.in`:
+
+```
+# Use doxygen-awesome-css theme
+HTML_EXTRA_STYLESHEET  = project-config/doxygen-awesome-css/doxygen-awesome.css
+
+# Recommended settings for doxygen-awesome-css
+HTML_COLORSTYLE        = AUTO_LIGHT
+DISABLE_INDEX          = NO
+GENERATE_TREEVIEW      = YES
+PAGE_OUTLINE_PANEL     = YES
+FULL_SIDEBAR           = NO
+```
+
+These settings enable the sidebar navigation tree, a per-page outline panel, and automatic light/dark mode switching based on the user's system preference. The theme is included as part of the `project-config` submodule, so no additional setup is required.
+
+You can also use your `README.md` as the Doxygen main page and pull project metadata from CMake variables:
+
+```
+PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
+PROJECT_BRIEF          = "@CMAKE_PROJECT_DESCRIPTION@"
+OUTPUT_DIRECTORY       = @CMAKE_BINARY_DIR@/docs
+
+INPUT                  = include/mylib \
+                         README.md
+USE_MDFILE_AS_MAINPAGE = README.md
+```
+
+Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` references are replaced with CMake variable values at configure time.
 
 ### GitHub Markdown Filter
 
@@ -90,11 +123,13 @@ The filter handles:
 - **CI badge lines** — stripped out (they show stale status outside GitHub)
 - **Heading anchors** — adds GitHub-style `{#slug}` IDs so fragment links (e.g. `#section-name`) resolve correctly in the generated HTML
 
-To use it, set `INPUT_FILTER` in your `Doxyfile.in` to run the script on Markdown files:
+To use it, set `FILTER_PATTERNS` in your `Doxyfile.in` to run the script on Markdown files:
 
 ```
-INPUT_FILTER = "python @PROJECT_SOURCE_DIR@/project-config/scripts/doxygen-github-markdown-filter.py"
+FILTER_PATTERNS = *.md="python @CMAKE_SOURCE_DIR@/project-config/scripts/doxygen-github-markdown-filter.py"
 ```
+
+Using `FILTER_PATTERNS` rather than `INPUT_FILTER` ensures the filter only runs on Markdown files, leaving source code and other inputs unaffected.
 
 ### Usage
 
