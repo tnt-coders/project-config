@@ -5,6 +5,9 @@
             "name": "conan-debug",
             "hidden": true,
             "description": "Conan settings for debug build configuration",
+            "environment": {
+                "CONAN_HOME": "${sourceDir}/build/debug/.conan2"
+            },
             "cacheVariables": {
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES":
                     "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
@@ -17,6 +20,9 @@
             "name": "conan-release",
             "hidden": true,
             "description": "Conan settings for release build configuration",
+            "environment": {
+                "CONAN_HOME": "${sourceDir}/build/release/.conan2"
+            },
             "cacheVariables": {
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES":
                     "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
