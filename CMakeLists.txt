@@ -94,8 +94,7 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
                         "${PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX}"
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
                 COMMENT "Running clang-tidy"
-                VERBATIM
-                USES_TERMINAL)
+                VERBATIM USES_TERMINAL)
 
             # Add a target to run clang-tidy and apply fixes
             add_custom_target(
@@ -104,8 +103,7 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
                         -fix "${PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX}"
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
                 COMMENT "Running clang-tidy with fixes"
-                VERBATIM
-                USES_TERMINAL)
+                VERBATIM USES_TERMINAL)
         else()
             message(WARNING "Project-Config: no .clang-tidy found, skipping clang-tidy targets")
         endif()
