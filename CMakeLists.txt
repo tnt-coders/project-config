@@ -1,3 +1,8 @@
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+set(CMAKE_MODULE_PATH
+    "${CMAKE_MODULE_PATH}"
+    PARENT_SCOPE)
+
 # Configure docs target if explicitly enabled
 if(PROJECT_CONFIG_ENABLE_DOCS)
     # Find doxygen (and optionally dot for graph generation)
