@@ -57,7 +57,13 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
         ".*"
         CACHE STRING "Regex of source files to run clang-tidy on (run-clang-tidy file regex).")
     set(PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS
+        # Some projects record compiler-specific warning flags in compile_commands.json. Clang-tidy
+        # still uses Clang to parse each translation unit, so it can reject warning flags that are
+        # valid for the real compiler but unknown to Clang.
         "-extra-arg=-Wno-unknown-warning-option"
+        # MSVC compile databases can contain build/codegen flags such as /MP and /GL. Those flags
+        # are legitimate for cl.exe, but clang-tidy does not consume them during AST analysis.
+        "-extra-arg=-Wno-unused-command-line-argument"
         CACHE STRING "Additional arguments passed to run-clang-tidy.")
 
     # Find clang-tidy

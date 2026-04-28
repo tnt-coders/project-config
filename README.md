@@ -303,9 +303,16 @@ When `PROJECT_CONFIG_ENABLE_CLANG_TIDY` is `ON` and `run-clang-tidy` is found, t
 - A `compile_commands.json` compilation database (automatically generated when using the default [Presets](#presets), which use the Ninja generator)
 - On Windows: Python 3 (used to invoke `run-clang-tidy` which is a Python script)
 
-By default, `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` passes
-`-extra-arg=-Wno-unknown-warning-option`. This keeps clang-tidy from failing on warning flags that
-are valid for the compiler recorded in `compile_commands.json` but unknown to Clang's parser.
+By default, `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` passes two defensive Clang parser flags:
+
+- `-extra-arg=-Wno-unknown-warning-option`: keeps clang-tidy from failing on warning flags that
+  are valid for the compiler recorded in `compile_commands.json` but unknown to Clang's parser.
+- `-extra-arg=-Wno-unused-command-line-argument`: keeps clang-tidy from failing on build or codegen
+  flags that are legitimate for the recorded compiler but unused during clang-tidy's AST analysis.
+  This commonly applies to MSVC flags such as `/MP` and `/GL`.
+
+These arguments affect only clang-tidy's replay of `compile_commands.json`. They do not remove or
+weaken the flags used by the real build.
 
 ### Usage
 
