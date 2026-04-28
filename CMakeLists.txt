@@ -56,6 +56,9 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
     set(PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX
         ".*"
         CACHE STRING "Regex of source files to run clang-tidy on (run-clang-tidy file regex).")
+    set(PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS
+        "-extra-arg=-Wno-unknown-warning-option"
+        CACHE STRING "Additional arguments passed to run-clang-tidy.")
 
     # Find clang-tidy
     find_program(RUN_CLANG_TIDY_PROGRAM run-clang-tidy)
@@ -79,16 +82,20 @@ if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
                 set(RUN_CLANG_TIDY_COMMAND "${Python3_EXECUTABLE}" "${RUN_CLANG_TIDY_PROGRAM}")
             endif()
 
+            # Clang-tidy replays compile_commands.json through Clang, which may see warning flags
+            # intended for a different compiler. Extra args keep those compiler-specific flags from
+            # blocking lint while preserving the real build's warning policy.
+            set(CLANG_TIDY_EXTRA_ARGS ${PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS})
+
             # On Apple platforms, Homebrew LLVM's clang-tidy needs the SDK sysroot to find system
             # headers
-            set(CLANG_TIDY_EXTRA_ARGS "")
             if(APPLE)
                 execute_process(
                     COMMAND xcrun --show-sdk-path
                     OUTPUT_VARIABLE APPLE_SDK_PATH
                     OUTPUT_STRIP_TRAILING_WHITESPACE)
                 if(APPLE_SDK_PATH)
-                    set(CLANG_TIDY_EXTRA_ARGS "-extra-arg=--sysroot=${APPLE_SDK_PATH}")
+                    list(APPEND CLANG_TIDY_EXTRA_ARGS "-extra-arg=--sysroot=${APPLE_SDK_PATH}")
                 endif()
             endif()
 

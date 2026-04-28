@@ -29,6 +29,7 @@ To enable the docs and clang-tidy targets, add `project-config` as a subdirector
 |--------|-------------|
 | `PROJECT_CONFIG_ENABLE_DOCS` | Enable `docs` target when Doxygen is available |
 | `PROJECT_CONFIG_ENABLE_CLANG_TIDY` | Enable `clang-tidy` and `clang-tidy-fix` targets when `run-clang-tidy` is available |
+| `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` | Additional arguments passed to `run-clang-tidy` |
 
 These options are not declared by `project-config` itself — the consuming project must define them before calling `add_subdirectory`. If unset, both features are disabled.
 
@@ -301,6 +302,10 @@ When `PROJECT_CONFIG_ENABLE_CLANG_TIDY` is `ON` and `run-clang-tidy` is found, t
 - A `.clang-tidy` configuration file at the project root
 - A `compile_commands.json` compilation database (automatically generated when using the default [Presets](#presets), which use the Ninja generator)
 - On Windows: Python 3 (used to invoke `run-clang-tidy` which is a Python script)
+
+By default, `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` passes
+`-extra-arg=-Wno-unknown-warning-option`. This keeps clang-tidy from failing on warning flags that
+are valid for the compiler recorded in `compile_commands.json` but unknown to Clang's parser.
 
 ### Usage
 
