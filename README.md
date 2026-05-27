@@ -27,7 +27,7 @@ To enable the docs and clang-tidy targets, add `project-config` as a subdirector
 
 | Option | Description |
 |--------|-------------|
-| `PROJECT_CONFIG_ENABLE_DOCS` | Enable `docs` target when Doxygen is available |
+| `PROJECT_CONFIG_ENABLE_DOCS` | Enable `docs` target and install generated HTML docs when Doxygen is available |
 | `PROJECT_CONFIG_ENABLE_CLANG_TIDY` | Enable `clang-tidy` and `clang-tidy-fix` targets when `run-clang-tidy` is available |
 | `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` | Additional arguments passed to `run-clang-tidy` |
 
@@ -219,7 +219,11 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
 
 ## Docs Target
 
-When `PROJECT_CONFIG_ENABLE_DOCS` is `ON` and [Doxygen](https://www.doxygen.nl/) is found, a `docs` target is added that generates API documentation.
+When `PROJECT_CONFIG_ENABLE_DOCS` is `ON` and [Doxygen](https://www.doxygen.nl/) is found, a `docs` target is added that generates API documentation. The generated HTML docs are also installed so CPack packages can include them. CPack runs Doxygen before staging install files, so packaging does not require a separate `docs` build step.
+
+Projects that need local HTML help while running from the build tree can make an app target depend
+on `project_config_docs_for_development`. That target runs a lightweight existence check and only
+generates Doxygen output when the build-tree HTML docs are missing.
 
 ### Prerequisites
 
@@ -260,6 +264,16 @@ USE_MDFILE_AS_MAINPAGE = README.md
 ```
 
 Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` references are replaced with CMake variable values at configure time.
+
+Generated HTML docs default to `@CMAKE_BINARY_DIR@/docs/html` and install to
+`${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs` in the `Runtime` component. Override these before
+adding `project-config` when a project needs a different layout:
+
+```cmake
+set(PROJECT_CONFIG_DOCS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs/html")
+set(PROJECT_CONFIG_DOCS_INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs")
+set(PROJECT_CONFIG_DOCS_INSTALL_COMPONENT Runtime)
+```
 
 ### GitHub Markdown Filter
 

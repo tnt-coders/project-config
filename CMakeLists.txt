@@ -2,9 +2,20 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 set(CMAKE_MODULE_PATH
     "${CMAKE_MODULE_PATH}"
     PARENT_SCOPE)
+include(GNUInstallDirs)
 
 # Configure docs target if explicitly enabled
 if(PROJECT_CONFIG_ENABLE_DOCS)
+    set(PROJECT_CONFIG_DOCS_OUTPUT_DIR
+        "${CMAKE_BINARY_DIR}/docs/html"
+        CACHE PATH "Directory containing generated HTML documentation.")
+    set(PROJECT_CONFIG_DOCS_INSTALL_DESTINATION
+        "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs"
+        CACHE STRING "Install destination for generated HTML documentation.")
+    set(PROJECT_CONFIG_DOCS_INSTALL_COMPONENT
+        "Runtime"
+        CACHE STRING "Install component for generated HTML documentation.")
+
     # Find doxygen (and optionally dot for graph generation)
     find_package(Doxygen QUIET OPTIONAL_COMPONENTS dot)
 
@@ -42,6 +53,55 @@ if(PROJECT_CONFIG_ENABLE_DOCS)
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                 COMMENT "Generating API documentation with Doxygen"
                 VERBATIM)
+
+            set(_project_config_docs_development_script
+                "${CMAKE_CURRENT_BINARY_DIR}/generate-docs-if-missing.cmake")
+            file(
+                WRITE "${_project_config_docs_development_script}"
+                "if(NOT EXISTS \"${PROJECT_CONFIG_DOCS_OUTPUT_DIR}/index.html\")\n"
+                "    execute_process(\n"
+                "        COMMAND \"${DOXYGEN_EXECUTABLE}\" \"${DOXYFILE}\"\n"
+                "        WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\"\n"
+                "        RESULT_VARIABLE _project_config_docs_result)\n"
+                "    if(NOT _project_config_docs_result EQUAL 0)\n"
+                "        message(FATAL_ERROR \"Doxygen failed while preparing development docs.\")\n"
+                "    endif()\n"
+                "endif()\n")
+
+            # App targets can depend on this lightweight target to make local docs available from
+            # development builds without rerunning Doxygen after the HTML tree already exists.
+            add_custom_target(
+                project_config_docs_for_development
+                COMMAND "${CMAKE_COMMAND}" -P "${_project_config_docs_development_script}"
+                COMMENT "Ensuring development documentation exists"
+                VERBATIM)
+
+            # Install generated docs with the configured component so CPack includes them when
+            # that component is packaged. OPTIONAL keeps install usable before docs are built.
+            install(
+                DIRECTORY "${PROJECT_CONFIG_DOCS_OUTPUT_DIR}/"
+                DESTINATION "${PROJECT_CONFIG_DOCS_INSTALL_DESTINATION}"
+                COMPONENT "${PROJECT_CONFIG_DOCS_INSTALL_COMPONENT}"
+                OPTIONAL)
+
+            set(_project_config_docs_cpack_script
+                "${CMAKE_CURRENT_BINARY_DIR}/generate-docs-for-cpack.cmake")
+            file(
+                WRITE "${_project_config_docs_cpack_script}"
+                "execute_process(\n"
+                "    COMMAND \"${DOXYGEN_EXECUTABLE}\" \"${DOXYFILE}\"\n"
+                "    WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\"\n"
+                "    RESULT_VARIABLE _project_config_docs_result)\n"
+                "if(NOT _project_config_docs_result EQUAL 0)\n"
+                "    message(FATAL_ERROR \"Doxygen failed while preparing CPack docs.\")\n"
+                "endif()\n")
+
+            # CPack runs install scripts before staging install rules, so generated docs exist
+            # before the directory install above tries to copy them into the package image.
+            list(APPEND CPACK_INSTALL_SCRIPTS "${_project_config_docs_cpack_script}")
+            set(CPACK_INSTALL_SCRIPTS
+                "${CPACK_INSTALL_SCRIPTS}"
+                PARENT_SCOPE)
         else()
             message(WARNING "Project-Config: no Doxyfile configuration found, skipping docs target")
         endif()
