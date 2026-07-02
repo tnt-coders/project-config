@@ -30,6 +30,21 @@
                     "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing",
                 "CONAN_INSTALL_BUILD_CONFIGURATIONS": "Release"
             }
+        },
+        {
+            "name": "conan-relwithdebinfo",
+            "hidden": true,
+            "description": "Conan settings for RelWithDebInfo build configuration",
+            "environment": {
+                "CONAN_HOME": "${sourceDir}/build/relwithdebinfo/.conan2"
+            },
+            "cacheVariables": {
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES":
+                    "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
+                "CONAN_INSTALL_ARGS":
+                    "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing",
+                "CONAN_INSTALL_BUILD_CONFIGURATIONS": "RelWithDebInfo"
+            }
         }
     ],
     "buildPresets": [
@@ -40,6 +55,10 @@
         {
             "name": "conan-release",
             "hidden": true
+        },
+        {
+            "name": "conan-relwithdebinfo",
+            "hidden": true
         }
     ],
     "testPresets": [
@@ -49,6 +68,10 @@
         },
         {
             "name": "conan-release",
+            "hidden": true
+        },
+        {
+            "name": "conan-relwithdebinfo",
             "hidden": true
         }
     ]

@@ -31,6 +31,20 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
+        },
+        {
+            "name": "default-relwithdebinfo",
+            "hidden": true,
+            "inherits": [
+                "default-base"
+            ],
+            "displayName": "RelWithDebInfo",
+            "description":
+                "Optimized build with debug info and no LTO, for fast local iteration on release-level performance",
+            "binaryDir": "${sourceDir}/build/relwithdebinfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
         }
     ],
     "buildPresets": [
@@ -43,6 +57,11 @@
             "name": "default-release",
             "hidden": true,
             "configuration": "Release"
+        },
+        {
+            "name": "default-relwithdebinfo",
+            "hidden": true,
+            "configuration": "RelWithDebInfo"
         }
     ],
     "testPresets": [
@@ -55,6 +74,11 @@
             "name": "default-release",
             "hidden": true,
             "configuration": "Release"
+        },
+        {
+            "name": "default-relwithdebinfo",
+            "hidden": true,
+            "configuration": "RelWithDebInfo"
         }
     ]
 }
