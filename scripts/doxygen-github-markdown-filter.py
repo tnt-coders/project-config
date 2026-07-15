@@ -3,8 +3,11 @@
 - Converts GFM admonitions (> [!NOTE], etc.) to Doxygen @-commands
 - Strips CI badge lines (they show stale status outside GitHub)
 - Adds anchor IDs to headings so GitHub-style fragment links (#slug) resolve in Doxygen
+- Converts ```mermaid fences to client-rendered HTML (GitHub renders them natively; Doxygen
+  has no Mermaid support, so pages that contain diagrams carry their own loader script)
 """
 
+import html
 import re
 import sys
 
@@ -15,6 +18,24 @@ ADMONITION_MAP = {
     "WARNING": "warning",
     "CAUTION": "warning",
 }
+
+# Emitted once at the end of any page that contains at least one Mermaid block. Each generated
+# Doxygen page is a standalone HTML document, so the page carries its own loader instead of the
+# site needing a customized Doxygen header. The script is the vendored single-file UMD bundle in
+# doxygen-mermaid/, copied beside the pages by the consumer's Doxyfile HTML_EXTRA_FILES; the
+# relative src works because Doxygen's HTML output directory is flat, and a classic script (not
+# an ES module) is required so pages also render over file:// with no network. HTML output only
+# (GENERATE_LATEX is off).
+MERMAID_LOADER = [
+    "\\htmlonly",
+    '<script src="mermaid.min.js"></script>',
+    "<script>",
+    '  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;',
+    '  mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "neutral" });',
+    "  mermaid.run();",
+    "</script>",
+    "\\endhtmlonly",
+]
 
 
 def github_slug(text):
@@ -36,9 +57,28 @@ def convert(lines):
     it = iter(range(len(lines)))
     in_fence = False
     fence_pattern = None
+    saw_mermaid = False
 
     for i in it:
         line = lines[i]
+
+        # --- Mermaid blocks: emit HTML for client-side rendering ---
+        mermaid_match = re.match(r"^(`{3,}|~{3,})\s*mermaid\s*$", line)
+        if mermaid_match and not in_fence:
+            chars = mermaid_match.group(1)
+            close_pattern = re.compile(rf"^{re.escape(chars[0])}{{{len(chars)},}}\s*$")
+            out.append("\\htmlonly")
+            out.append('<pre class="mermaid">')
+            for j in it:  # consume the diagram body
+                if close_pattern.match(lines[j]):
+                    break
+                # Escape so Mermaid text (e.g. -->, <br/>) survives as textContent, which is
+                # what mermaid.run() reads back before rendering.
+                out.append(html.escape(lines[j]))
+            out.append("</pre>")
+            out.append("\\endhtmlonly")
+            saw_mermaid = True
+            continue
 
         # --- Fenced code blocks: pass through unchanged ---
         fence_match = re.match(r"^(`{3,}|~{3,})", line)
@@ -85,6 +125,9 @@ def convert(lines):
             continue
 
         out.append(line)
+
+    if saw_mermaid:
+        out.extend(MERMAID_LOADER)
 
     return out
 
