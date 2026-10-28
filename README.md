@@ -471,3 +471,7 @@ A project pinned at `3768b27` acts on these changes when it moves to the current
   `environment` sets it in `cacheVariables` instead.
 - **Build folders follow the preset name** (see [Presets](#presets)): presets named `debug` and
   `release` keep their folders, and a preset of any other name moves to `build/<name>`.
+- **Recipe annotations are read more strictly** by the bundled `cmake-conan`: a commented-out
+  requirement no longer has its recipe created, and an annotation it cannot use (on a tool
+  requirement, on a reference built at runtime, or with a URL that does not end in `.git`) draws a
+  warning where it was skipped or misread before.
