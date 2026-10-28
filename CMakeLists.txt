@@ -27,9 +27,10 @@ include(GNUInstallDirs)
 #
 # OUTPUT_DIR belongs to the target: every run deletes it and replaces it with exactly what that run
 # generated, so it must lie inside the build tree and be a folder of its own, never one that holds
-# another docs target's folder. The HTML installs to DESTINATION, by default the docdir, in
-# COMPONENT, by default Development, so API docs ship with a project's development files and never
-# in an end-user package.
+# another docs target's folder. The target records that folder, as an absolute path, in its
+# PROJECT_CONFIG_DOCS_OUTPUT_DIR property, so a caller elsewhere reads it rather than restating it.
+# The HTML installs to DESTINATION, by default the docdir, in COMPONENT, by default Development, so
+# API docs ship with a project's development files and never in an end-user package.
 #
 # Nothing is added when Doxygen is not found, so callers guard with if(TARGET <target>).
 function(project_config_add_docs target)
@@ -171,6 +172,7 @@ HTML_OUTPUT            = "@output_leaf@"
         COMMENT "Generating ${target} with Doxygen"
         VERBATIM)
     add_custom_target(${target} ALL DEPENDS "${output_dir}/index.html")
+    set_property(TARGET ${target} PROPERTY PROJECT_CONFIG_DOCS_OUTPUT_DIR "${output_dir}")
 
     if(NOT DEFINED arg_DESTINATION)
         set(arg_DESTINATION "${CMAKE_INSTALL_DOCDIR}")

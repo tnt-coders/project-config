@@ -345,6 +345,9 @@ directory's source folder (`CMAKE_CURRENT_SOURCE_DIR`), `OUTPUT_DIR` against its
   replaces it with exactly what that run generated, since Doxygen never deletes a page it stops
   generating, so give every docs target a folder of its own. It must be a folder inside
   `CMAKE_BINARY_DIR`, and configuring fails otherwise, so a mistyped path can never delete sources.
+  The target records the folder, as an absolute path, in its `PROJECT_CONFIG_DOCS_OUTPUT_DIR`
+  property, so code that copies or links to the HTML reads it with `get_target_property` instead of
+  restating the path.
 - `INPUT` — the folders and files that Doxygen reads. Each must exist when the project is
   configured, since the run depends on every file under them and so repeats exactly when one
   changes. Generated content therefore reaches the run through `DEPENDS` and the Doxyfile's
