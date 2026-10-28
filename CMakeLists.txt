@@ -4,192 +4,154 @@ set(CMAKE_MODULE_PATH
     PARENT_SCOPE)
 include(GNUInstallDirs)
 
-# Adds <target>, which runs Doxygen over DOXYFILE:
+# Adds <target>, which brings OUTPUT_DIR up to date with a Doxygen run over DOXYFILE in every build:
 #
 # ~~~
-# project_config_add_docs(<target> DOXYFILE <file> OUTPUT_DIR <dir>
-#                         [INSTALL_DESTINATION <destination> COMPONENT <component>]
-#                         [DEVELOPMENT_TARGET <name>])
+# project_config_add_docs(<target> DOXYFILE <file|file.in> OUTPUT_DIR <dir> INPUT <path>...
+#                         [DEPENDS <dep>...] [DESTINATION <dir>] [COMPONENT <name>])
 # ~~~
 #
-# OUTPUT_DIR is the HTML directory that DOXYFILE writes; the Doxyfile decides it, and every run
-# empties it first, so it holds exactly that run's pages. A DOXYFILE ending in .in is configured
-# with @ONLY substitution to a file of the target's own, so two calls never share a configuration;
-# the template sees the caller's variables.
+# Relative paths follow CMake's usual rule: DOXYFILE and INPUT resolve against the calling
+# directory's source folder, OUTPUT_DIR against its build folder.
 #
-# With INSTALL_DESTINATION, installing COMPONENT reruns Doxygen and then copies OUTPUT_DIR to the
-# destination, so a package never needs a separate docs build. DEVELOPMENT_TARGET names a target
-# that runs Doxygen only while OUTPUT_DIR/index.html is missing, for app targets that open the HTML
-# from the build tree.
+# INPUT names the folders and files Doxygen reads, each of which must exist at configure time, and
+# the run depends on every file under them, so a build reruns Doxygen exactly when one of them
+# changes. DEPENDS adds generated inputs and the targets that produce them. The call states Doxygen's
+# INPUT, OUTPUT_DIRECTORY and HTML_OUTPUT itself, overriding any the Doxyfile sets. A DOXYFILE ending
+# in .in is configured with @ONLY substitution, with the caller's variables in scope.
 #
-# Nothing is added when PROJECT_CONFIG_ENABLE_DOCS is off, Doxygen is not found or DOXYFILE does not
-# exist, so callers guard with if(TARGET <target>).
+# OUTPUT_DIR belongs to the target: every run deletes it and replaces it with exactly what that run
+# generated, so it must lie inside the build tree and be a folder of its own, never one that holds
+# another docs target's folder. The HTML installs to DESTINATION, by default the
+# docdir, in COMPONENT, by default Development, so API docs ship with a project's development files
+# and never in an end-user package.
+#
+# Nothing is added when Doxygen is not found, so callers guard with if(TARGET <target>).
 function(project_config_add_docs target)
-    cmake_parse_arguments(PARSE_ARGV 1 arg ""
-                          "DOXYFILE;OUTPUT_DIR;INSTALL_DESTINATION;COMPONENT;DEVELOPMENT_TARGET" "")
+    cmake_parse_arguments(PARSE_ARGV 1 arg "" "DOXYFILE;OUTPUT_DIR;DESTINATION;COMPONENT"
+                          "INPUT;DEPENDS")
     if(DEFINED arg_UNPARSED_ARGUMENTS
        OR NOT DEFINED arg_DOXYFILE
-       OR NOT DEFINED arg_OUTPUT_DIR)
-        message(FATAL_ERROR "project_config_add_docs(${target}) takes DOXYFILE and OUTPUT_DIR, "
-                            "and only the optional arguments it documents.")
-    endif()
-    if((DEFINED arg_INSTALL_DESTINATION AND NOT DEFINED arg_COMPONENT)
-       OR (DEFINED arg_COMPONENT AND NOT DEFINED arg_INSTALL_DESTINATION))
-        message(FATAL_ERROR "project_config_add_docs(${target}) takes INSTALL_DESTINATION and "
-                            "COMPONENT together.")
+       OR NOT DEFINED arg_OUTPUT_DIR
+       OR NOT DEFINED arg_INPUT)
+        message(FATAL_ERROR "project_config_add_docs(${target}) takes DOXYFILE, OUTPUT_DIR and "
+                            "INPUT, and only the optional arguments it documents.")
     endif()
 
-    # Emptying OUTPUT_DIR must never reach the caller's sources or build files, which also covers
-    # the top-level trees that contain them. A relative path resolves against the calling source
-    # directory, as install(DIRECTORY) reads it, so the check sees the path every run uses. The
-    # trailing / lets a path that normalizes to one, such as ".", still match its own directory.
-    cmake_path(ABSOLUTE_PATH arg_OUTPUT_DIR)
-    foreach(protected IN ITEMS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
-        cmake_path(IS_PREFIX arg_OUTPUT_DIR "${protected}/" NORMALIZE output_dir_contains)
-        if(output_dir_contains)
-            message(FATAL_ERROR "project_config_add_docs(${target}) empties OUTPUT_DIR before "
-                                "every run, so it must not contain ${protected}.")
+    # Checked before Doxygen is looked for, so a bad call fails on every machine. Each run deletes
+    # OUTPUT_DIR, so it must be a named folder whose parent lies in the build tree; one anywhere
+    # else could take sources, or the whole build, with it.
+    cmake_path(ABSOLUTE_PATH arg_OUTPUT_DIR BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" NORMALIZE
+               OUTPUT_VARIABLE output_dir)
+    cmake_path(GET output_dir PARENT_PATH output_parent)
+    cmake_path(GET output_dir FILENAME output_leaf)
+    cmake_path(IS_PREFIX CMAKE_BINARY_DIR "${output_parent}" NORMALIZE output_in_build)
+    if(NOT output_in_build OR output_leaf STREQUAL "")
+        message(FATAL_ERROR "project_config_add_docs(${target}): OUTPUT_DIR ${output_dir} is not "
+                            "a folder inside the build tree ${CMAKE_BINARY_DIR}.")
+    endif()
+
+    set(input_paths "")
+    set(input_files "")
+    foreach(input IN LISTS arg_INPUT)
+        cmake_path(ABSOLUTE_PATH input BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE
+                   OUTPUT_VARIABLE input_path)
+        if(IS_DIRECTORY "${input_path}")
+            file(GLOB_RECURSE folder_files CONFIGURE_DEPENDS "${input_path}/*")
+            list(APPEND input_files ${folder_files})
+        elseif(EXISTS "${input_path}")
+            list(APPEND input_files "${input_path}")
+        else()
+            message(FATAL_ERROR "project_config_add_docs(${target}): INPUT ${input} does not "
+                                "exist.")
         endif()
+        list(APPEND input_paths "\"${input_path}\"")
     endforeach()
-
-    # For the same reason no two docs targets' OUTPUT_DIRs may nest: either target's run would wipe
-    # the other's pages.
-    get_property(docs_targets GLOBAL PROPERTY PROJECT_CONFIG_DOCS_TARGETS)
-    foreach(other IN LISTS docs_targets)
-        get_property(other_dir GLOBAL PROPERTY PROJECT_CONFIG_DOCS_OUTPUT_DIR_${other})
-        cmake_path(IS_PREFIX arg_OUTPUT_DIR "${other_dir}/" NORMALIZE contains_other)
-        cmake_path(IS_PREFIX other_dir "${arg_OUTPUT_DIR}/" NORMALIZE inside_other)
-        if(contains_other OR inside_other)
-            message(FATAL_ERROR "Docs targets ${target} and ${other} nest their OUTPUT_DIRs, "
-                                "${arg_OUTPUT_DIR} and ${other_dir}.")
-        endif()
-    endforeach()
-    set_property(GLOBAL APPEND PROPERTY PROJECT_CONFIG_DOCS_TARGETS ${target})
-    set_property(GLOBAL PROPERTY PROJECT_CONFIG_DOCS_OUTPUT_DIR_${target} "${arg_OUTPUT_DIR}")
-
-    if(NOT PROJECT_CONFIG_ENABLE_DOCS)
-        message(STATUS "Project-Config: PROJECT_CONFIG_ENABLE_DOCS=OFF, skipping ${target} target")
-        return()
-    endif()
 
     # Found per call because a find_package result stays in the scope that ran it, and callers live
-    # in other directories; the executable paths are cached after the first call.
+    # in other directories; the executable path is cached after the first call.
     find_package(Doxygen QUIET)
-    if(NOT Doxygen_FOUND)
+    if(NOT DOXYGEN_FOUND)
         message(STATUS "Project-Config: doxygen not found, skipping ${target} target")
         return()
     endif()
-    message(STATUS "Project-Config: doxygen found, enabling ${target} target")
 
-    if(NOT EXISTS "${arg_DOXYFILE}")
-        message(WARNING "Project-Config: ${arg_DOXYFILE} not found, skipping ${target} target")
-        return()
-    endif()
-    message(STATUS "Project-Config: using ${arg_DOXYFILE} for ${target} target")
-
-    set(doxyfile "${arg_DOXYFILE}")
+    cmake_path(ABSOLUTE_PATH arg_DOXYFILE BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE
+               OUTPUT_VARIABLE doxyfile)
     if(doxyfile MATCHES "\\.in$")
-        set(doxyfile "${CMAKE_CURRENT_BINARY_DIR}/${target}.Doxyfile")
-        configure_file("${arg_DOXYFILE}" "${doxyfile}" @ONLY)
+        set(configured "${CMAKE_CURRENT_BINARY_DIR}/${target}.Doxyfile")
+        configure_file("${doxyfile}" "${configured}" @ONLY)
+        set(doxyfile "${configured}")
     endif()
 
-    # The one Doxygen run that the target, the development target and the install rule all execute.
-    # It empties OUTPUT_DIR first, because Doxygen never deletes a page it no longer generates, and
-    # remakes it with its parents, because Doxygen creates only the last folder of its output path.
-    # It checks OUTPUT_DIR afterwards, because a Doxyfile writing elsewhere would otherwise pass
-    # unnoticed, with the development check rerunning Doxygen on every build.
-    set(generate "${CMAKE_CURRENT_BINARY_DIR}/${target}.cmake")
+    # Doxygen keeps the last assignment of a tag, so the wrapper's INPUT and output folder override
+    # whatever the included Doxyfile says. file(CONFIGURE) rewrites the wrapper only when its
+    # content changes, which is when the run must repeat.
+    list(JOIN input_paths " \\\n                         " input_lines)
+    set(wrapper "${CMAKE_CURRENT_BINARY_DIR}/${target}.wrapper.Doxyfile")
     file(
-        WRITE "${generate}"
-        "file(REMOVE_RECURSE \"${arg_OUTPUT_DIR}\")\n"
-        "file(MAKE_DIRECTORY \"${arg_OUTPUT_DIR}\")\n"
-        "execute_process(\n"
-        "    COMMAND \"${DOXYGEN_EXECUTABLE}\" \"${doxyfile}\"\n"
-        "    WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\"\n"
-        "    RESULT_VARIABLE _project_config_docs_result)\n"
-        "if(NOT _project_config_docs_result EQUAL 0)\n"
-        "    message(FATAL_ERROR \"Doxygen failed while generating ${target}.\")\n"
-        "endif()\n"
-        "if(NOT EXISTS \"${arg_OUTPUT_DIR}/index.html\")\n"
-        "    message(FATAL_ERROR \"${target}'s Doxyfile did not write its HTML to its \"\n"
-        "                        \"OUTPUT_DIR, ${arg_OUTPUT_DIR}.\")\n"
-        "endif()\n")
+        CONFIGURE
+        OUTPUT "${wrapper}"
+        CONTENT [=[
+@INCLUDE               = "@doxyfile@"
+INPUT                  = @input_lines@
+OUTPUT_DIRECTORY       = "@output_parent@"
+HTML_OUTPUT            = "@output_leaf@"
+]=]
+        @ONLY)
 
-    add_custom_target(
-        ${target}
-        COMMAND "${CMAKE_COMMAND}" -P "${generate}"
+    # Every run replaces OUTPUT_DIR, because Doxygen never deletes a page it stops generating, and
+    # makes its parent first, because Doxygen creates only the last folder of its output path.
+    add_custom_command(
+        OUTPUT "${output_dir}/index.html"
+        COMMAND "${CMAKE_COMMAND}" -E rm -rf "${output_dir}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${output_parent}"
+        COMMAND Doxygen::doxygen "${wrapper}"
+        DEPENDS ${input_files} ${arg_DEPENDS} "${doxyfile}" "${wrapper}"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Generating ${target} with Doxygen"
         VERBATIM)
+    add_custom_target(${target} ALL DEPENDS "${output_dir}/index.html")
 
-    if(DEFINED arg_DEVELOPMENT_TARGET)
-        set(development_script "${CMAKE_CURRENT_BINARY_DIR}/${arg_DEVELOPMENT_TARGET}.cmake")
-        file(WRITE "${development_script}" "if(NOT EXISTS \"${arg_OUTPUT_DIR}/index.html\")\n"
-                                           "    include(\"${generate}\")\n" "endif()\n")
-        add_custom_target(
-            ${arg_DEVELOPMENT_TARGET}
-            COMMAND "${CMAKE_COMMAND}" -P "${development_script}"
-            COMMENT "Ensuring ${target} output exists"
-            VERBATIM)
+    if(NOT DEFINED arg_DESTINATION)
+        set(arg_DESTINATION "${CMAKE_INSTALL_DOCDIR}")
     endif()
-
-    if(DEFINED arg_INSTALL_DESTINATION)
-        # A directory's install rules run in the order they are declared, so the HTML is regenerated
-        # before it is copied, and only when its own component is installed.
-        install(CODE "include(\"${generate}\")" COMPONENT "${arg_COMPONENT}")
-        install(
-            DIRECTORY "${arg_OUTPUT_DIR}/"
-            DESTINATION "${arg_INSTALL_DESTINATION}"
-            COMPONENT "${arg_COMPONENT}")
+    if(NOT DEFINED arg_COMPONENT)
+        set(arg_COMPONENT Development)
     endif()
+    install(
+        DIRECTORY "${output_dir}/"
+        DESTINATION "${arg_DESTINATION}"
+        COMPONENT "${arg_COMPONENT}")
 endfunction()
 
 # The project's own documentation, from docs/Doxyfile.in or else docs/Doxyfile, as the docs target.
-# Each default is cached only when the caller has not set the variable, because under older policy
-# settings (CMP0077 before CMake 3.13, CMP0126 before 3.21) creating the cache entry would discard
-# the caller's plain set().
-if(NOT DEFINED PROJECT_CONFIG_DOCS_OUTPUT_DIR)
-    set(PROJECT_CONFIG_DOCS_OUTPUT_DIR
+# PROJECT_CONFIG_DOCS_INPUT, relative to the source root, and the optional
+# PROJECT_CONFIG_DOCS_DEPENDS are its INPUT and DEPENDS.
+if(PROJECT_CONFIG_ENABLE_DOCS)
+    if(NOT DEFINED PROJECT_CONFIG_DOCS_INPUT)
+        message(FATAL_ERROR "PROJECT_CONFIG_ENABLE_DOCS needs PROJECT_CONFIG_DOCS_INPUT, the "
+                            "folders and files, relative to the source root, the docs document.")
+    endif()
+    list(TRANSFORM PROJECT_CONFIG_DOCS_INPUT PREPEND "${CMAKE_SOURCE_DIR}/"
+         OUTPUT_VARIABLE _project_config_docs_input)
+    set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile.in")
+    if(NOT EXISTS "${_project_config_doxyfile}")
+        set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile")
+    endif()
+    project_config_add_docs(
+        docs
+        DOXYFILE
+        "${_project_config_doxyfile}"
+        OUTPUT_DIR
         "${CMAKE_BINARY_DIR}/docs/html"
-        CACHE PATH "Directory containing generated HTML documentation.")
+        INPUT
+        ${_project_config_docs_input}
+        DEPENDS
+        ${PROJECT_CONFIG_DOCS_DEPENDS})
+else()
+    message(STATUS "Project-Config: PROJECT_CONFIG_ENABLE_DOCS=OFF, skipping docs target")
 endif()
-if(NOT DEFINED PROJECT_CONFIG_DOCS_INSTALL_DESTINATION)
-    set(PROJECT_CONFIG_DOCS_INSTALL_DESTINATION
-        "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs"
-        CACHE STRING "Install destination for generated HTML documentation.")
-endif()
-if(NOT DEFINED PROJECT_CONFIG_DOCS_INSTALL_COMPONENT)
-    set(PROJECT_CONFIG_DOCS_INSTALL_COMPONENT
-        "Runtime"
-        CACHE STRING "Install component for generated HTML documentation.")
-endif()
-if(NOT DEFINED PROJECT_CONFIG_DOCS_INSTALL)
-    option(PROJECT_CONFIG_DOCS_INSTALL
-           "Install the docs target's HTML, regenerating it at install time" ON)
-endif()
-
-set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile.in")
-if(NOT EXISTS "${_project_config_doxyfile}")
-    set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile")
-endif()
-
-set(_project_config_docs_install)
-if(PROJECT_CONFIG_DOCS_INSTALL)
-    set(_project_config_docs_install
-        INSTALL_DESTINATION "${PROJECT_CONFIG_DOCS_INSTALL_DESTINATION}" COMPONENT
-        "${PROJECT_CONFIG_DOCS_INSTALL_COMPONENT}")
-endif()
-
-# App targets can depend on project_config_docs_for_development to open the HTML from the build tree
-# without rerunning Doxygen once it exists.
-project_config_add_docs(
-    docs
-    DOXYFILE
-    "${_project_config_doxyfile}"
-    OUTPUT_DIR
-    "${PROJECT_CONFIG_DOCS_OUTPUT_DIR}"
-    ${_project_config_docs_install}
-    DEVELOPMENT_TARGET
-    project_config_docs_for_development)
 
 if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
     set(PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX

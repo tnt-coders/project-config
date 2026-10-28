@@ -219,11 +219,22 @@ Including the `conan.json` presets automatically integrates [cmake-conan](https:
 
 ## Docs Target
 
-When `PROJECT_CONFIG_ENABLE_DOCS` is `ON` and [Doxygen](https://www.doxygen.nl/) is found, a `docs` target is added that generates API documentation. The generated HTML docs are also installed so CPack packages can include them. Installing their component reruns Doxygen before the HTML is copied, so packaging does not require a separate `docs` build step.
+When `PROJECT_CONFIG_ENABLE_DOCS` is `ON` and [Doxygen](https://www.doxygen.nl/) is found, a `docs`
+target generates the project's documentation into `${CMAKE_BINARY_DIR}/docs/html` as part of every
+build. It reruns Doxygen only when one of its inputs changes, so a build that touches no documented
+file pays nothing for it. The HTML installs to `${CMAKE_INSTALL_DOCDIR}` in the `Development`
+component, so API docs ship exactly when a project ships its development files, and never in an
+end-user package that leaves `Development` out.
 
-Projects that need local HTML help while running from the build tree can make an app target depend
-on `project_config_docs_for_development`. That target runs a lightweight existence check and only
-generates Doxygen output when the build-tree HTML docs are missing.
+`PROJECT_CONFIG_DOCS_INPUT` is required when the option is `ON`: the folders and files, relative to
+the source root, that Doxygen reads. The optional `PROJECT_CONFIG_DOCS_DEPENDS` adds generated
+inputs, such as files a Doxyfile `@INCLUDE`s, and the targets that produce them. Set both before
+adding `project-config`:
+
+```cmake
+set(PROJECT_CONFIG_DOCS_INPUT README.md include)
+add_subdirectory(project-config)
+```
 
 ### Prerequisites
 
@@ -231,6 +242,10 @@ generates Doxygen output when the build-tree HTML docs are missing.
 - A Doxygen configuration file at one of the following locations (checked in order):
   - `docs/Doxyfile.in` — a CMake template, configured via `configure_file()` with `@ONLY` substitution
   - `docs/Doxyfile` — a static Doxygen configuration file
+
+The call states Doxygen's `INPUT`, `OUTPUT_DIRECTORY` and `HTML_OUTPUT` itself, in a small wrapper
+Doxyfile that includes yours and assigns them last, which is the assignment Doxygen keeps. Delete
+those three tags from your Doxyfile: they no longer decide anything there.
 
 ### Shared Doxygen Theme
 
@@ -255,33 +270,10 @@ You can also use your `README.md` as the Doxygen main page and pull project meta
 ```
 PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
 PROJECT_BRIEF          = "@CMAKE_PROJECT_DESCRIPTION@"
-OUTPUT_DIRECTORY       = @CMAKE_BINARY_DIR@/docs
-
-INPUT                  = include/mylib \
-                         README.md
 USE_MDFILE_AS_MAINPAGE = README.md
 ```
 
-Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` references are replaced with CMake variable values at configure time.
-
-Generated HTML docs default to `@CMAKE_BINARY_DIR@/docs/html` and install to
-`${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs` in the `Runtime` component. The output directory
-must name the HTML folder your Doxyfile writes; `project-config` does not set it in the Doxyfile.
-Override these before adding `project-config` when a project needs a different layout, or set
-`PROJECT_CONFIG_DOCS_INSTALL` to `OFF` to keep the `docs` target but install nothing. The values
-shown are the defaults:
-
-```cmake
-set(PROJECT_CONFIG_DOCS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs/html")
-set(PROJECT_CONFIG_DOCS_INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs")
-set(PROJECT_CONFIG_DOCS_INSTALL_COMPONENT Runtime)
-set(PROJECT_CONFIG_DOCS_INSTALL ON)
-```
-
-The regeneration is itself an install rule of the docs' component, declared before the rule that
-copies the HTML, so `cmake --install` and `cpack` both ship freshly generated docs, and a package
-that leaves the component out never runs Doxygen. With `PROJECT_CONFIG_DOCS_INSTALL` set to `OFF`,
-neither rule exists.
+Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` references are replaced with CMake variable values at configure time. Doxygen runs from the source root, so relative paths in the Doxyfile resolve against it.
 
 ### Further Documentation Targets
 
@@ -290,26 +282,30 @@ consuming project as well. Call it after `add_subdirectory(project-config)` to a
 run, such as a user guide beside the API docs:
 
 ```cmake
-project_config_add_docs(<target> DOXYFILE <file> OUTPUT_DIR <dir>
-                        [INSTALL_DESTINATION <destination> COMPONENT <component>]
-                        [DEVELOPMENT_TARGET <name>])
+project_config_add_docs(<target> DOXYFILE <file|file.in> OUTPUT_DIR <dir> INPUT <path>...
+                        [DEPENDS <dep>...] [DESTINATION <dir>] [COMPONENT <name>])
 ```
 
-- `DOXYFILE` — the Doxygen configuration. A path ending in `.in` is configured with `@ONLY`
-  substitution to a file of the target's own, with the caller's variables in scope, so two calls
-  never share a configuration.
-- `OUTPUT_DIR` — the HTML directory that configuration writes. Every run makes it first, with its
-  parents, since Doxygen creates only the last folder of its output path. The directory belongs to
-  the target: each run deletes it and replaces it with exactly what that run generated, so it must
-  not contain the calling directory's sources or build tree, and no two docs targets' `OUTPUT_DIR`s
-  may nest.
-- `INSTALL_DESTINATION` and `COMPONENT`, given together — install the HTML there in that
-  component, regenerating it first as described above. Omit both to install nothing.
-- `DEVELOPMENT_TARGET` — a target that runs Doxygen only while `<OUTPUT_DIR>/index.html` is
-  missing, like `project_config_docs_for_development`.
+Relative paths follow CMake's usual rule: `DOXYFILE` and `INPUT` resolve against the calling
+directory's source folder (`CMAKE_CURRENT_SOURCE_DIR`), `OUTPUT_DIR` against its build folder
+(`CMAKE_CURRENT_BINARY_DIR`), as a custom command's output does.
 
-Nothing is added when `PROJECT_CONFIG_ENABLE_DOCS` is `OFF`, Doxygen is not found, or the
-`DOXYFILE` does not exist, so guard any dependency on the target with `if(TARGET <target>)`.
+- `DOXYFILE` — the Doxygen configuration. A path ending in `.in` is configured with `@ONLY`
+  substitution to a file of the target's own, with the caller's variables in scope.
+- `OUTPUT_DIR` — the HTML folder the run writes. It belongs to the target: each run deletes it and
+  replaces it with exactly what that run generated, since Doxygen never deletes a page it stops
+  generating, so give every docs target a folder of its own. It must be a folder inside
+  `CMAKE_BINARY_DIR`, and configuring fails otherwise, so a mistyped path can never delete sources.
+- `INPUT` — the folders and files that Doxygen reads. Each must exist when the project is
+  configured, since the run depends on every file under them and so repeats exactly when one
+  changes. Generated content therefore reaches the run through `DEPENDS` and the Doxyfile's
+  `EXAMPLE_PATH` or `@INCLUDE`, never through `INPUT`.
+- `DEPENDS` — generated inputs and the targets that produce them.
+- `DESTINATION` and `COMPONENT` — where the HTML installs, by default `${CMAKE_INSTALL_DOCDIR}` in
+  the `Development` component.
+
+The target is part of every build. Nothing is added when Doxygen is not found, so guard any
+dependency on the target with `if(TARGET <target>)`.
 
 ### GitHub Markdown Filter
 
