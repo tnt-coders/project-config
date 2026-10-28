@@ -91,14 +91,16 @@ inherits it, so a preset named `debug` builds in `build/debug`.
 
 ### `cmake-presets/conan.json`
 
-Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan). Including this preset sets `CMAKE_PROJECT_TOP_LEVEL_INCLUDES` to point to `conan_provider.cmake`, which hooks into CMake's `find_package` calls to automatically run `conan install` during configuration. Dependencies listed in your `conanfile.txt` or `conanfile.py` are resolved transparently — no changes to your `CMakeLists.txt` are required.
+Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan). Including this preset sets `CMAKE_PROJECT_TOP_LEVEL_INCLUDES` to load cmake-conan's `conan_provider.cmake`, which hooks into CMake's `find_package` calls to automatically run `conan install` during configuration. Dependencies listed in your `conanfile.txt` or `conanfile.py` are resolved transparently — no changes to your `CMakeLists.txt` are required.
 
 - `conan-debug` - Conan settings for debug builds
 - `conan-release` - Conan settings for release builds
 - `conan-relwithdebinfo` - Conan settings for RelWithDebInfo builds
 
-Each build tree keeps its own Conan cache: the `CONAN_HOME` cache variable is
-`build/<name>/.conan2`, named like the build folder above.
+Each build tree keeps its own Conan cache: `cmake-presets/conan-provider.cmake`, which loads the
+provider, defaults the `CONAN_HOME` cache variable to `.conan2` in the build folder. Set
+`-DCONAN_HOME=<path>` to choose another home, or `-DCONAN_HOME=` to leave it to Conan's own
+resolution.
 
 ### Usage
 
@@ -408,8 +410,8 @@ A project pinned at `3768b27` acts on these changes when it moves to the current
   decides whether `Development` ships.
 - **The configured Doxyfile moved** from `build/<name>/Doxyfile` to
   `build/<name>/project-config/docs.Doxyfile`, for anything that ran Doxygen on it directly.
-- **`CONAN_HOME` is a cache variable,** `build/<name>/.conan2`, no longer an environment variable
-  of the preset. A preset of the project's own that set `CONAN_HOME` in
+- **`CONAN_HOME` is a cache variable,** defaulting to `.conan2` in the build folder, no longer an
+  environment variable of the preset. A preset of the project's own that set `CONAN_HOME` in
   `environment` sets it in `cacheVariables` instead.
 - **Build folders follow the preset name** (see [Presets](#presets)): presets named `debug` and
   `release` keep their folders, and a preset of any other name moves to `build/<name>`.

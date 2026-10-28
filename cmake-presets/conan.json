@@ -4,13 +4,12 @@
         {
             "name": "conan-base",
             "hidden": true,
-            "description": "Conan settings shared by every build configuration; each build tree owns its Conan home, which the provider exports from the CONAN_HOME cache entry",
+            "description": "Conan settings shared by every build configuration",
             "cacheVariables": {
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES":
-                    "${sourceDir}/project-config/cmake-conan/conan_provider.cmake",
+                    "${sourceDir}/project-config/cmake-presets/conan-provider.cmake",
                 "CONAN_INSTALL_ARGS":
-                    "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing",
-                "CONAN_HOME": "${sourceDir}/build/${presetName}/.conan2"
+                    "-c;tools.cmake.cmaketoolchain:user_presets=False;--build=missing"
             }
         },
         {
