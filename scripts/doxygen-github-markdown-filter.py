@@ -22,8 +22,8 @@ ADMONITION_MAP = {
 # Emitted once at the end of any page that contains at least one Mermaid block. Each generated
 # Doxygen page is a standalone HTML document, so the page carries its own loader instead of the
 # site needing a customized Doxygen header. The script is the vendored single-file UMD bundle in
-# doxygen-mermaid/, copied beside the pages by the consumer's Doxyfile HTML_EXTRA_FILES; the
-# relative src works because Doxygen's HTML output directory is flat, and a classic script (not
+# doxygen-mermaid/, which project_config_add_docs copies beside the pages through HTML_EXTRA_FILES;
+# the relative src works because Doxygen's HTML output directory is flat, and a classic script (not
 # an ES module) is required so pages also render over file:// with no network. HTML output only
 # (GENERATE_LATEX is off).
 MERMAID_LOADER = [

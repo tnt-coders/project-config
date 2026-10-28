@@ -1,7 +1,3 @@
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-set(CMAKE_MODULE_PATH
-    "${CMAKE_MODULE_PATH}"
-    PARENT_SCOPE)
 include(GNUInstallDirs)
 
 # Adds <target>, which brings OUTPUT_DIR up to date with a Doxygen run over DOXYFILE in every build:
@@ -16,15 +12,19 @@ include(GNUInstallDirs)
 #
 # INPUT names the folders and files Doxygen reads, each of which must exist at configure time, and
 # the run depends on every file under them, so a build reruns Doxygen exactly when one of them
-# changes. DEPENDS adds generated inputs and the targets that produce them. The call states Doxygen's
-# INPUT, OUTPUT_DIRECTORY and HTML_OUTPUT itself, overriding any the Doxyfile sets. A DOXYFILE ending
-# in .in is configured with @ONLY substitution, with the caller's variables in scope.
+# changes. DEPENDS adds generated inputs and the targets that produce them. The call states
+# Doxygen's INPUT, OUTPUT_DIRECTORY and HTML_OUTPUT itself, overriding any the Doxyfile sets. A
+# DOXYFILE ending in .in is configured with @ONLY substitution, with the caller's variables in
+# scope.
+#
+# Every run also gets the house look, the tags at the head of the wrapper below, set before the
+# Doxyfile is read so a tag the Doxyfile sets replaces the house value.
 #
 # OUTPUT_DIR belongs to the target: every run deletes it and replaces it with exactly what that run
 # generated, so it must lie inside the build tree and be a folder of its own, never one that holds
-# another docs target's folder. The HTML installs to DESTINATION, by default the
-# docdir, in COMPONENT, by default Development, so API docs ship with a project's development files
-# and never in an end-user package.
+# another docs target's folder. The HTML installs to DESTINATION, by default the docdir, in
+# COMPONENT, by default Development, so API docs ship with a project's development files and never
+# in an end-user package.
 #
 # Nothing is added when Doxygen is not found, so callers guard with if(TARGET <target>).
 function(project_config_add_docs target)
@@ -41,8 +41,14 @@ function(project_config_add_docs target)
     # Checked before Doxygen is looked for, so a bad call fails on every machine. Each run deletes
     # OUTPUT_DIR, so it must be a named folder whose parent lies in the build tree; one anywhere
     # else could take sources, or the whole build, with it.
-    cmake_path(ABSOLUTE_PATH arg_OUTPUT_DIR BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" NORMALIZE
-               OUTPUT_VARIABLE output_dir)
+    cmake_path(
+        ABSOLUTE_PATH
+        arg_OUTPUT_DIR
+        BASE_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}"
+        NORMALIZE
+        OUTPUT_VARIABLE
+        output_dir)
     cmake_path(GET output_dir PARENT_PATH output_parent)
     cmake_path(GET output_dir FILENAME output_leaf)
     cmake_path(IS_PREFIX CMAKE_BINARY_DIR "${output_parent}" NORMALIZE output_in_build)
@@ -54,8 +60,14 @@ function(project_config_add_docs target)
     set(input_paths "")
     set(input_files "")
     foreach(input IN LISTS arg_INPUT)
-        cmake_path(ABSOLUTE_PATH input BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE
-                   OUTPUT_VARIABLE input_path)
+        cmake_path(
+            ABSOLUTE_PATH
+            input
+            BASE_DIRECTORY
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+            NORMALIZE
+            OUTPUT_VARIABLE
+            input_path)
         if(IS_DIRECTORY "${input_path}")
             file(GLOB_RECURSE folder_files CONFIGURE_DEPENDS "${input_path}/*")
             list(APPEND input_files ${folder_files})
@@ -76,23 +88,56 @@ function(project_config_add_docs target)
         return()
     endif()
 
-    cmake_path(ABSOLUTE_PATH arg_DOXYFILE BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE
-               OUTPUT_VARIABLE doxyfile)
+    # The house Markdown filter is a Python script.
+    find_package(
+        Python3
+        COMPONENTS Interpreter
+        QUIET REQUIRED)
+
+    cmake_path(
+        ABSOLUTE_PATH
+        arg_DOXYFILE
+        BASE_DIRECTORY
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        NORMALIZE
+        OUTPUT_VARIABLE
+        doxyfile)
     if(doxyfile MATCHES "\\.in$")
         set(configured "${CMAKE_CURRENT_BINARY_DIR}/${target}.Doxyfile")
         configure_file("${doxyfile}" "${configured}" @ONLY)
         set(doxyfile "${configured}")
     endif()
 
-    # Doxygen keeps the last assignment of a tag, so the wrapper's INPUT and output folder override
-    # whatever the included Doxyfile says. file(CONFIGURE) rewrites the wrapper only when its
-    # content changes, which is when the run must repeat.
+    # The house look's files, which project-config ships beside this function. Only tags every
+    # Doxygen from 1.10 on reads belong in the house block, since an unknown tag warns on every run.
+    set(house_stylesheet
+        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/doxygen-awesome-css/doxygen-awesome.css")
+    set(house_script "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/doxygen-mermaid/mermaid.min.js")
+    set(house_filter "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/scripts/doxygen-github-markdown-filter.py")
+
+    # Doxygen runs a filter through the shell, and cmd.exe drops the first and last quote of a line
+    # that begins with one, so the interpreter is quoted from its second character on: the line then
+    # begins with a plain character, and cmd and sh alike still read the path as one word.
+    string(SUBSTRING "${Python3_EXECUTABLE}" 0 1 python_head)
+    string(SUBSTRING "${Python3_EXECUTABLE}" 1 -1 python_tail)
+
+    # Doxygen keeps the last assignment of a tag, so the included Doxyfile overrides the house tags
+    # above it, and the wrapper's INPUT and output folder below it override the Doxyfile.
+    # file(CONFIGURE) rewrites the wrapper only when its content changes, which is when the run must
+    # repeat.
     list(JOIN input_paths " \\\n                         " input_lines)
     set(wrapper "${CMAKE_CURRENT_BINARY_DIR}/${target}.wrapper.Doxyfile")
     file(
         CONFIGURE
-        OUTPUT "${wrapper}"
-        CONTENT [=[
+        OUTPUT
+        "${wrapper}"
+        CONTENT
+        [=[
+HTML_EXTRA_STYLESHEET  = "@house_stylesheet@"
+HTML_EXTRA_FILES       = "@house_script@"
+FILTER_PATTERNS        = "*.md=@python_head@\"@python_tail@\" \"@house_filter@\""
+GENERATE_TREEVIEW      = YES
+GENERATE_LATEX         = NO
 @INCLUDE               = "@doxyfile@"
 INPUT                  = @input_lines@
 OUTPUT_DIRECTORY       = "@output_parent@"
@@ -107,7 +152,13 @@ HTML_OUTPUT            = "@output_leaf@"
         COMMAND "${CMAKE_COMMAND}" -E rm -rf "${output_dir}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${output_parent}"
         COMMAND Doxygen::doxygen "${wrapper}"
-        DEPENDS ${input_files} ${arg_DEPENDS} "${doxyfile}" "${wrapper}"
+        DEPENDS ${input_files}
+                ${arg_DEPENDS}
+                "${doxyfile}"
+                "${wrapper}"
+                "${house_stylesheet}"
+                "${house_script}"
+                "${house_filter}"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Generating ${target} with Doxygen"
         VERBATIM)
@@ -134,7 +185,7 @@ if(PROJECT_CONFIG_ENABLE_DOCS)
                             "folders and files, relative to the source root, the docs document.")
     endif()
     list(TRANSFORM PROJECT_CONFIG_DOCS_INPUT PREPEND "${CMAKE_SOURCE_DIR}/"
-         OUTPUT_VARIABLE _project_config_docs_input)
+                                                     OUTPUT_VARIABLE _project_config_docs_input)
     set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile.in")
     if(NOT EXISTS "${_project_config_doxyfile}")
         set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile")

@@ -19,6 +19,9 @@ git submodule add https://github.com/tnt-coders/project-config.git
 
 The submodule must be checked out before CMake configuration runs, since `CMakePresets.json` includes are resolved at configure time.
 
+`add_subdirectory(project-config)` needs CMake 3.20 or newer (it uses `cmake_path`), and the
+preset files use preset schema version 7, which needs CMake 3.27.
+
 ---
 
 ## CMake Integration
@@ -76,10 +79,15 @@ The default presets use the [Ninja](https://ninja-build.org/) generator. Ninja i
 
 ### `cmake-presets/default.json`
 
-Provides base configure, build, and test presets for debug and release configurations:
+Provides base configure, build, and test presets for three configurations:
 
-- `default-debug` - Debug build with output in `build/debug`
-- `default-release` - Release build with output in `build/release`
+- `default-debug` - Debug build
+- `default-release` - Release build
+- `default-relwithdebinfo` - Optimized build with debug info, for measuring release-level
+  performance locally
+
+Each configure preset builds in `build/<name>`, where `<name>` is the name of your preset that
+inherits it, so a preset named `debug` builds in `build/debug`.
 
 ### `cmake-presets/conan.json`
 
@@ -87,6 +95,10 @@ Provides Conan package manager integration via [cmake-conan](https://github.com/
 
 - `conan-debug` - Conan settings for debug builds
 - `conan-release` - Conan settings for release builds
+- `conan-relwithdebinfo` - Conan settings for RelWithDebInfo builds
+
+Each build tree keeps its own Conan cache: the `CONAN_HOME` cache variable is
+`build/<name>/.conan2`, named like the build folder above.
 
 ### Usage
 
@@ -239,31 +251,38 @@ add_subdirectory(project-config)
 ### Prerequisites
 
 - Doxygen installed and available on `PATH`
+- Python 3, which runs the [GitHub Markdown Filter](#github-markdown-filter); with Doxygen found,
+  configuring fails without it
 - A Doxygen configuration file at one of the following locations (checked in order):
   - `docs/Doxyfile.in` — a CMake template, configured via `configure_file()` with `@ONLY` substitution
   - `docs/Doxyfile` — a static Doxygen configuration file
 
-The call states Doxygen's `INPUT`, `OUTPUT_DIRECTORY` and `HTML_OUTPUT` itself, in a small wrapper
-Doxyfile that includes yours and assigns them last, which is the assignment Doxygen keeps. Delete
-those three tags from your Doxyfile: they no longer decide anything there.
+The call runs Doxygen on a small wrapper Doxyfile that sets the house tags below, then includes
+yours, then sets `INPUT`, `OUTPUT_DIRECTORY` and `HTML_OUTPUT`. Doxygen keeps the last assignment
+of a tag, so your Doxyfile overrides the house tags, and the call's three tags override your
+Doxyfile: delete those three from it, since they no longer decide anything there.
 
-### Shared Doxygen Theme
+### House Look
 
-`project-config` includes [doxygen-awesome-css](https://github.com/jothepro/doxygen-awesome-css) as a submodule. To use the theme, set the following in your `docs/Doxyfile.in`:
+Every docs target gets the `project-config` look without its Doxyfile saying so. The house tags
+point into `project-config` wherever it sits:
 
-```
-# Use doxygen-awesome-css theme
-HTML_EXTRA_STYLESHEET  = project-config/doxygen-awesome-css/doxygen-awesome.css
+| Tag | House value |
+|-----|-------------|
+| `HTML_EXTRA_STYLESHEET` | `doxygen-awesome-css/doxygen-awesome.css`, the [doxygen-awesome-css](https://github.com/jothepro/doxygen-awesome-css) theme |
+| `HTML_EXTRA_FILES` | `doxygen-mermaid/mermaid.min.js`, which draws the Mermaid diagrams the filter below converts |
+| `FILTER_PATTERNS` | `*.md` through the [GitHub Markdown Filter](#github-markdown-filter) |
+| `GENERATE_TREEVIEW` | `YES` |
+| `GENERATE_LATEX` | `NO` |
 
-# Recommended settings for doxygen-awesome-css
-HTML_COLORSTYLE        = AUTO_LIGHT
-DISABLE_INDEX          = NO
-GENERATE_TREEVIEW      = YES
-PAGE_OUTLINE_PANEL     = YES
-FULL_SIDEBAR           = NO
-```
+Your Doxyfile keeps only its project's own tags. To override a house tag, set it there; to keep
+the house value, leave the tag out entirely. A Doxyfile written by `doxygen -g` lists every tag,
+even empty ones such as `HTML_EXTRA_FILES =`, and each of those overrides the house value, so
+delete the house tags from it. A list tag takes `+=` to add to the house value instead of
+replacing it, as in `HTML_EXTRA_STYLESHEET += docs/extra.css`.
 
-These settings enable the sidebar navigation tree, a per-page outline panel, and automatic light/dark mode switching based on the user's system preference. The theme is included as part of the `project-config` submodule, so no additional setup is required.
+The house tags are only ones every Doxygen from 1.10 on reads, since a tag a Doxygen does not know
+draws a warning on every run.
 
 You can also use your `README.md` as the Doxygen main page and pull project metadata from CMake variables:
 
@@ -316,14 +335,11 @@ The filter handles:
 - **GFM admonitions** (`> [!NOTE]`, `> [!WARNING]`, etc.) — converted to Doxygen `@note`, `@warning`, and similar commands
 - **CI badge lines** — stripped out (they show stale status outside GitHub)
 - **Heading anchors** — adds GitHub-style `{#slug}` IDs so fragment links (e.g. `#section-name`) resolve correctly in the generated HTML
+- **Mermaid fences** (` ```mermaid `) — converted to diagrams drawn in the browser by the vendored
+  `doxygen-mermaid/mermaid.min.js`, so they render offline
 
-To use it, set `FILTER_PATTERNS` in your `Doxyfile.in` to run the script on Markdown files:
-
-```
-FILTER_PATTERNS = *.md="python @CMAKE_SOURCE_DIR@/project-config/scripts/doxygen-github-markdown-filter.py"
-```
-
-Using `FILTER_PATTERNS` rather than `INPUT_FILTER` ensures the filter only runs on Markdown files, leaving source code and other inputs unaffected.
+The house look runs it on every Markdown input, and only on those, with the Python 3 interpreter
+CMake finds.
 
 ### Usage
 
@@ -369,3 +385,31 @@ cmake --build build/debug --target clang-tidy-fix
 
 > [!NOTE]
 > `CMAKE_EXPORT_COMPILE_COMMANDS` is automatically set to `ON` when clang-tidy targets are enabled.
+
+---
+
+## Upgrading from 3768b27
+
+A project pinned at `3768b27` acts on these changes when it moves to the current version:
+
+- **The docs input is stated in CMake.** With `PROJECT_CONFIG_ENABLE_DOCS` on, configuring fails
+  unless `PROJECT_CONFIG_DOCS_INPUT` is set, so move the Doxyfile's `INPUT` there. The call sets
+  `INPUT`, `OUTPUT_DIRECTORY` and `HTML_OUTPUT` itself, so delete them from the Doxyfile; the HTML
+  still lands in `build/<name>/docs/html`.
+- **The house look comes from `project-config`.** Delete `HTML_EXTRA_STYLESHEET`,
+  `HTML_EXTRA_FILES`, `FILTER_PATTERNS`, `GENERATE_TREEVIEW` and `GENERATE_LATEX` from the
+  Doxyfile, empty ones included, so that it keeps only the project's own tags (see
+  [House Look](#house-look)).
+- **`DOXYGEN_HAVE_DOT` is gone.** `project-config` no longer looks for Graphviz, so
+  `HAVE_DOT = @DOXYGEN_HAVE_DOT@` configures to an empty value, which Doxygen silently reads as
+  `NO`. Set `HAVE_DOT` in the Doxyfile.
+- **Docs build and install by default.** `docs` is part of every build, and its HTML installs to
+  `${CMAKE_INSTALL_DOCDIR}` in the `Development` component, so a package that lists its components
+  decides whether `Development` ships.
+- **The configured Doxyfile moved** from `build/<name>/Doxyfile` to
+  `build/<name>/project-config/docs.Doxyfile`, for anything that ran Doxygen on it directly.
+- **`CONAN_HOME` is a cache variable,** `build/<name>/.conan2`, no longer an environment variable
+  of the preset. A preset of the project's own that set `CONAN_HOME` in
+  `environment` sets it in `cacheVariables` instead.
+- **Build folders follow the preset name** (see [Presets](#presets)): presets named `debug` and
+  `release` keep their folders, and a preset of any other name moves to `build/<name>`.

@@ -4,7 +4,8 @@
         {
             "name": "default-base",
             "hidden": true,
-            "generator": "Ninja"
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}"
         },
         {
             "name": "default-debug",
@@ -14,7 +15,6 @@
             ],
             "displayName": "Debug",
             "description": "Default settings for debug build configuration",
-            "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
@@ -27,7 +27,6 @@
             ],
             "displayName": "Release",
             "description": "Default settings for release build configuration",
-            "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
@@ -41,7 +40,6 @@
             "displayName": "RelWithDebInfo",
             "description":
                 "Optimized build with debug info and no LTO, for fast local iteration on release-level performance",
-            "binaryDir": "${sourceDir}/build/relwithdebinfo",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
