@@ -266,7 +266,7 @@ Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` ref
 
 Generated HTML docs default to `@CMAKE_BINARY_DIR@/docs/html` and install to
 `${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs` in the `Runtime` component. The output directory
-must name the HTML folder your Doxyfile writes; `project-config` reads it but does not set it.
+must name the HTML folder your Doxyfile writes; `project-config` does not set it in the Doxyfile.
 Override these before adding `project-config` when a project needs a different layout, or set
 `PROJECT_CONFIG_DOCS_INSTALL` to `OFF` to keep the `docs` target but install nothing. The values
 shown are the defaults:
@@ -299,7 +299,10 @@ project_config_add_docs(<target> DOXYFILE <file> OUTPUT_DIR <dir>
   substitution to a file of the target's own, with the caller's variables in scope, so two calls
   never share a configuration.
 - `OUTPUT_DIR` — the HTML directory that configuration writes. Every run makes it first, with its
-  parents, since Doxygen creates only the last folder of its output path.
+  parents, since Doxygen creates only the last folder of its output path. The directory belongs to
+  the target: each run deletes it and replaces it with exactly what that run generated, so it must
+  not contain the calling directory's sources or build tree, and no two docs targets' `OUTPUT_DIR`s
+  may nest.
 - `INSTALL_DESTINATION` and `COMPONENT`, given together — install the HTML there in that
   component, regenerating it first as described above. Omit both to install nothing.
 - `DEVELOPMENT_TARGET` — a target that runs Doxygen only while `<OUTPUT_DIR>/index.html` is

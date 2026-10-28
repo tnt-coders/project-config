@@ -12,9 +12,10 @@ include(GNUInstallDirs)
 #                         [DEVELOPMENT_TARGET <name>])
 # ~~~
 #
-# OUTPUT_DIR is the HTML directory that DOXYFILE writes; the Doxyfile decides it, and this function
-# only reads it. A DOXYFILE ending in .in is configured with @ONLY substitution to a file of the
-# target's own, so two calls never share a configuration; the template sees the caller's variables.
+# OUTPUT_DIR is the HTML directory that DOXYFILE writes; the Doxyfile decides it, and every run
+# empties it first, so it holds exactly that run's pages. A DOXYFILE ending in .in is configured
+# with @ONLY substitution to a file of the target's own, so two calls never share a configuration;
+# the template sees the caller's variables.
 #
 # With INSTALL_DESTINATION, installing COMPONENT reruns Doxygen and then copies OUTPUT_DIR to the
 # destination, so a package never needs a separate docs build. DEVELOPMENT_TARGET names a target
@@ -37,6 +38,34 @@ function(project_config_add_docs target)
         message(FATAL_ERROR "project_config_add_docs(${target}) takes INSTALL_DESTINATION and "
                             "COMPONENT together.")
     endif()
+
+    # Emptying OUTPUT_DIR must never reach the caller's sources or build files, which also covers
+    # the top-level trees that contain them. A relative path resolves against the calling source
+    # directory, as install(DIRECTORY) reads it, so the check sees the path every run uses. The
+    # trailing / lets a path that normalizes to one, such as ".", still match its own directory.
+    cmake_path(ABSOLUTE_PATH arg_OUTPUT_DIR)
+    foreach(protected IN ITEMS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+        cmake_path(IS_PREFIX arg_OUTPUT_DIR "${protected}/" NORMALIZE output_dir_contains)
+        if(output_dir_contains)
+            message(FATAL_ERROR "project_config_add_docs(${target}) empties OUTPUT_DIR before "
+                                "every run, so it must not contain ${protected}.")
+        endif()
+    endforeach()
+
+    # For the same reason no two docs targets' OUTPUT_DIRs may nest: either target's run would wipe
+    # the other's pages.
+    get_property(docs_targets GLOBAL PROPERTY PROJECT_CONFIG_DOCS_TARGETS)
+    foreach(other IN LISTS docs_targets)
+        get_property(other_dir GLOBAL PROPERTY PROJECT_CONFIG_DOCS_OUTPUT_DIR_${other})
+        cmake_path(IS_PREFIX arg_OUTPUT_DIR "${other_dir}/" NORMALIZE contains_other)
+        cmake_path(IS_PREFIX other_dir "${arg_OUTPUT_DIR}/" NORMALIZE inside_other)
+        if(contains_other OR inside_other)
+            message(FATAL_ERROR "Docs targets ${target} and ${other} nest their OUTPUT_DIRs, "
+                                "${arg_OUTPUT_DIR} and ${other_dir}.")
+        endif()
+    endforeach()
+    set_property(GLOBAL APPEND PROPERTY PROJECT_CONFIG_DOCS_TARGETS ${target})
+    set_property(GLOBAL PROPERTY PROJECT_CONFIG_DOCS_OUTPUT_DIR_${target} "${arg_OUTPUT_DIR}")
 
     if(NOT PROJECT_CONFIG_ENABLE_DOCS)
         message(STATUS "Project-Config: PROJECT_CONFIG_ENABLE_DOCS=OFF, skipping ${target} target")
@@ -65,12 +94,14 @@ function(project_config_add_docs target)
     endif()
 
     # The one Doxygen run that the target, the development target and the install rule all execute.
-    # It makes OUTPUT_DIR first, because Doxygen creates only the last folder of its output path,
-    # and checks it afterwards, because a Doxyfile writing elsewhere would otherwise pass unnoticed,
-    # with the development check rerunning Doxygen on every build.
+    # It empties OUTPUT_DIR first, because Doxygen never deletes a page it no longer generates, and
+    # remakes it with its parents, because Doxygen creates only the last folder of its output path.
+    # It checks OUTPUT_DIR afterwards, because a Doxyfile writing elsewhere would otherwise pass
+    # unnoticed, with the development check rerunning Doxygen on every build.
     set(generate "${CMAKE_CURRENT_BINARY_DIR}/${target}.cmake")
     file(
         WRITE "${generate}"
+        "file(REMOVE_RECURSE \"${arg_OUTPUT_DIR}\")\n"
         "file(MAKE_DIRECTORY \"${arg_OUTPUT_DIR}\")\n"
         "execute_process(\n"
         "    COMMAND \"${DOXYGEN_EXECUTABLE}\" \"${doxyfile}\"\n"
