@@ -298,7 +298,8 @@ project_config_add_docs(<target> DOXYFILE <file> OUTPUT_DIR <dir>
 - `DOXYFILE` — the Doxygen configuration. A path ending in `.in` is configured with `@ONLY`
   substitution to a file of the target's own, with the caller's variables in scope, so two calls
   never share a configuration.
-- `OUTPUT_DIR` — the HTML directory that configuration writes.
+- `OUTPUT_DIR` — the HTML directory that configuration writes. Every run makes it first, with its
+  parents, since Doxygen creates only the last folder of its output path.
 - `INSTALL_DESTINATION` and `COMPONENT`, given together — install the HTML there in that
   component, regenerating it first as described above. Omit both to install nothing.
 - `DEVELOPMENT_TARGET` — a target that runs Doxygen only while `<OUTPUT_DIR>/index.html` is

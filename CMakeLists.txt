@@ -64,34 +64,36 @@ function(project_config_add_docs target)
         configure_file("${arg_DOXYFILE}" "${doxyfile}" @ONLY)
     endif()
 
+    # The one Doxygen run that the target, the development target and the install rule all execute.
+    # It makes OUTPUT_DIR first, because Doxygen creates only the last folder of its output path,
+    # and checks it afterwards, because a Doxyfile writing elsewhere would otherwise pass unnoticed,
+    # with the development check rerunning Doxygen on every build.
+    set(generate "${CMAKE_CURRENT_BINARY_DIR}/${target}.cmake")
+    file(
+        WRITE "${generate}"
+        "file(MAKE_DIRECTORY \"${arg_OUTPUT_DIR}\")\n"
+        "execute_process(\n"
+        "    COMMAND \"${DOXYGEN_EXECUTABLE}\" \"${doxyfile}\"\n"
+        "    WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\"\n"
+        "    RESULT_VARIABLE _project_config_docs_result)\n"
+        "if(NOT _project_config_docs_result EQUAL 0)\n"
+        "    message(FATAL_ERROR \"Doxygen failed while generating ${target}.\")\n"
+        "endif()\n"
+        "if(NOT EXISTS \"${arg_OUTPUT_DIR}/index.html\")\n"
+        "    message(FATAL_ERROR \"${target}'s Doxyfile did not write its HTML to its \"\n"
+        "                        \"OUTPUT_DIR, ${arg_OUTPUT_DIR}.\")\n"
+        "endif()\n")
+
     add_custom_target(
         ${target}
-        COMMAND "${DOXYGEN_EXECUTABLE}" "${doxyfile}"
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        COMMAND "${CMAKE_COMMAND}" -P "${generate}"
         COMMENT "Generating ${target} with Doxygen"
         VERBATIM)
 
-    # The one Doxygen run that the development target and the install rule both execute. It checks
-    # OUTPUT_DIR afterwards, because a Doxyfile writing elsewhere would otherwise pass unnoticed,
-    # with the development check rerunning Doxygen on every build.
-    string(
-        CONCAT generate
-               "execute_process(\n"
-               "    COMMAND \"${DOXYGEN_EXECUTABLE}\" \"${doxyfile}\"\n"
-               "    WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\"\n"
-               "    RESULT_VARIABLE _project_config_docs_result)\n"
-               "if(NOT _project_config_docs_result EQUAL 0)\n"
-               "    message(FATAL_ERROR \"Doxygen failed while generating ${target}.\")\n"
-               "endif()\n"
-               "if(NOT EXISTS \"${arg_OUTPUT_DIR}/index.html\")\n"
-               "    message(FATAL_ERROR \"${target}'s Doxyfile did not write its HTML to its \"\n"
-               "                        \"OUTPUT_DIR, ${arg_OUTPUT_DIR}.\")\n"
-               "endif()\n")
-
     if(DEFINED arg_DEVELOPMENT_TARGET)
         set(development_script "${CMAKE_CURRENT_BINARY_DIR}/${arg_DEVELOPMENT_TARGET}.cmake")
-        file(WRITE "${development_script}"
-             "if(NOT EXISTS \"${arg_OUTPUT_DIR}/index.html\")\n${generate}endif()\n")
+        file(WRITE "${development_script}" "if(NOT EXISTS \"${arg_OUTPUT_DIR}/index.html\")\n"
+                                           "    include(\"${generate}\")\n" "endif()\n")
         add_custom_target(
             ${arg_DEVELOPMENT_TARGET}
             COMMAND "${CMAKE_COMMAND}" -P "${development_script}"
@@ -102,7 +104,7 @@ function(project_config_add_docs target)
     if(DEFINED arg_INSTALL_DESTINATION)
         # A directory's install rules run in the order they are declared, so the HTML is regenerated
         # before it is copied, and only when its own component is installed.
-        install(CODE "${generate}" COMPONENT "${arg_COMPONENT}")
+        install(CODE "include(\"${generate}\")" COMPONENT "${arg_COMPONENT}")
         install(
             DIRECTORY "${arg_OUTPUT_DIR}/"
             DESTINATION "${arg_INSTALL_DESTINATION}"
@@ -111,17 +113,28 @@ function(project_config_add_docs target)
 endfunction()
 
 # The project's own documentation, from docs/Doxyfile.in or else docs/Doxyfile, as the docs target.
-set(PROJECT_CONFIG_DOCS_OUTPUT_DIR
-    "${CMAKE_BINARY_DIR}/docs/html"
-    CACHE PATH "Directory containing generated HTML documentation.")
-set(PROJECT_CONFIG_DOCS_INSTALL_DESTINATION
-    "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs"
-    CACHE STRING "Install destination for generated HTML documentation.")
-set(PROJECT_CONFIG_DOCS_INSTALL_COMPONENT
-    "Runtime"
-    CACHE STRING "Install component for generated HTML documentation.")
-option(PROJECT_CONFIG_DOCS_INSTALL
-       "Install the docs target's HTML, regenerating it at install time" ON)
+# Each default is cached only when the caller has not set the variable, because under older policy
+# settings (CMP0077 before CMake 3.13, CMP0126 before 3.21) creating the cache entry would discard
+# the caller's plain set().
+if(NOT DEFINED PROJECT_CONFIG_DOCS_OUTPUT_DIR)
+    set(PROJECT_CONFIG_DOCS_OUTPUT_DIR
+        "${CMAKE_BINARY_DIR}/docs/html"
+        CACHE PATH "Directory containing generated HTML documentation.")
+endif()
+if(NOT DEFINED PROJECT_CONFIG_DOCS_INSTALL_DESTINATION)
+    set(PROJECT_CONFIG_DOCS_INSTALL_DESTINATION
+        "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/docs"
+        CACHE STRING "Install destination for generated HTML documentation.")
+endif()
+if(NOT DEFINED PROJECT_CONFIG_DOCS_INSTALL_COMPONENT)
+    set(PROJECT_CONFIG_DOCS_INSTALL_COMPONENT
+        "Runtime"
+        CACHE STRING "Install component for generated HTML documentation.")
+endif()
+if(NOT DEFINED PROJECT_CONFIG_DOCS_INSTALL)
+    option(PROJECT_CONFIG_DOCS_INSTALL
+           "Install the docs target's HTML, regenerating it at install time" ON)
+endif()
 
 set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile.in")
 if(NOT EXISTS "${_project_config_doxyfile}")
