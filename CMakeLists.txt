@@ -221,8 +221,10 @@ else()
 endif()
 
 if(PROJECT_CONFIG_ENABLE_CLANG_TIDY)
+    # C, C++ and Objective-C sources only: the compile database also lists other compiled files,
+    # such as a Windows resource script, which clang-tidy cannot parse.
     set(PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX
-        ".*"
+        "[.](c|cc|cpp|cxx|m|mm)$"
         CACHE STRING "Regex of source files to run clang-tidy on (run-clang-tidy file regex).")
     set(PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS
         # Some projects record compiler-specific warning flags in compile_commands.json. Clang-tidy

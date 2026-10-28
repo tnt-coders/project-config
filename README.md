@@ -410,7 +410,7 @@ When `PROJECT_CONFIG_ENABLE_CLANG_TIDY` is `ON` and `run-clang-tidy` is found, t
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX` | `.*` | The file regex `run-clang-tidy` selects files with (Python `re.search` over each path) |
+| `PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX` | `[.](c\|cc\|cpp\|cxx\|m\|mm)$` | The file regex `run-clang-tidy` selects files with (Python `re.search` over each path). The default takes C, C++ and Objective-C sources, since the compile database also lists files clang-tidy cannot parse, such as a Windows resource script |
 | `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` | the two flags below | Additional arguments passed to `run-clang-tidy` |
 
 Set them with a plain `set()` before adding `project-config`, or as cache entries on the command
@@ -474,6 +474,10 @@ A project pinned at `3768b27` acts on these changes when it moves to the current
   `environment` sets it in `cacheVariables` instead.
 - **Build folders follow the preset name** (see [Presets](#presets)): presets named `debug` and
   `release` keep their folders, and a preset of any other name moves to `build/<name>`.
+- **clang-tidy checks only C, C++ and Objective-C sources by default.** The default
+  `PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX` was `.*`, which also handed clang-tidy the Windows
+  resource script an executable's compile database lists; a project with sources of other
+  extensions sets the variable itself.
 - **Recipe annotations are read more strictly** by the bundled `cmake-conan`: a commented-out
   requirement no longer has its recipe created, and an annotation it cannot use (on a tool
   requirement, on a reference built at runtime, or with a URL that does not end in `.git`) draws a
