@@ -5,21 +5,29 @@
 Reusable project configuration and CMake presets that can be shared across projects via Git submodules. Bundles two key submodules:
 
 - [**cmake-conan**](https://github.com/tnt-coders/cmake-conan) — A CMake dependency provider for the [Conan](https://conan.io/) C/C++ package manager. Automatically runs `conan install` during CMake configuration so dependencies are resolved without any changes to your `CMakeLists.txt`. Supports building private package recipes directly from Git when packages aren't available on a remote.
-- [**doxygen-awesome-css**](https://github.com/jothepro/doxygen-awesome-css) — A modern, professional theme for [Doxygen](https://www.doxygen.nl/)-generated documentation. Provides a clean responsive layout with dark mode support, code fragment copy buttons, and an interactive table of contents.
+- [**doxygen-awesome-css**](https://github.com/jothepro/doxygen-awesome-css) — A modern, professional theme for [Doxygen](https://www.doxygen.nl/)-generated documentation, with a clean responsive layout that follows the system's dark mode. `project-config` applies its stylesheet to every docs target; the theme's optional JavaScript extensions, such as code copy buttons and an interactive table of contents, are left to a Doxyfile that wants them.
 
 By adding `project-config` as a single submodule, your project gains Conan package management, professional documentation, linting targets, and standardized CMake presets with minimal setup.
 
 ## Setup
 
-Add this repository as a submodule in your project root:
+Add this repository as a submodule named `project-config` at your project root, then check out
+its own submodules:
 
 ```bash
 git submodule add https://github.com/tnt-coders/project-config.git
+git submodule update --init --recursive
 ```
 
-The submodule must be checked out before CMake configuration runs, since `CMakePresets.json` includes are resolved at configure time.
+The folder must be `<repo>/project-config`: `conan.json` loads its provider from
+`${sourceDir}/project-config`, and the examples below include the preset files and add the
+subdirectory by that path. The submodule must be checked out before CMake configuration runs,
+since `CMakePresets.json` includes its preset files at configure time. Its own submodules must be
+checked out too: the Conan provider loads `cmake-conan`, and the house documentation look reads
+`doxygen-awesome-css` (the Mermaid script in `doxygen-mermaid` is part of `project-config`
+itself).
 
-`add_subdirectory(project-config)` needs CMake 3.20 or newer (it uses `cmake_path`), and the
+`add_subdirectory(project-config)` needs CMake 3.21 or newer (it sets policy `CMP0126`), and the
 preset files use preset schema version 7, which needs CMake 3.27.
 
 ---
@@ -32,31 +40,38 @@ To enable the docs and clang-tidy targets, add `project-config` as a subdirector
 |--------|-------------|
 | `PROJECT_CONFIG_ENABLE_DOCS` | Enable `docs` target and install generated HTML docs when Doxygen is available |
 | `PROJECT_CONFIG_ENABLE_CLANG_TIDY` | Enable `clang-tidy` and `clang-tidy-fix` targets when `run-clang-tidy` is available |
-| `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` | Additional arguments passed to `run-clang-tidy` |
 
-These options are not declared by `project-config` itself — the consuming project must define them before calling `add_subdirectory`. If unset, both features are disabled.
+These options are not declared by `project-config` itself — the consuming project must define them before calling `add_subdirectory`. If unset, both features are disabled. Each feature reads further variables, described in the [Docs Target](#docs-target) and [Clang-Tidy Targets](#clang-tidy-targets) sections; the docs target requires `PROJECT_CONFIG_DOCS_INPUT`.
 
 ```cmake
 # Enable desired project-config features
 option(PROJECT_CONFIG_ENABLE_DOCS "Enable docs target when Doxygen is available" ON)
 option(PROJECT_CONFIG_ENABLE_CLANG_TIDY
        "Enable clang-tidy target when run-clang-tidy is available" ON)
+set(PROJECT_CONFIG_DOCS_INPUT README.md include)
 
 add_subdirectory(project-config)
 ```
 
-### Excluding from Conan Builds
+### Excluding from Conan Builds and Parent Projects
 
-`project-config` is a development-only submodule and should **not** be exported as part of a Conan package. If you plan to export your project as a Conan package, gate the `add_subdirectory` call behind an option so it can be disabled during Conan builds:
+`project-config` is a development-only submodule and should **not** be exported as part of a Conan package. If you plan to export your project as a Conan package, gate the `add_subdirectory` call behind an option so it can be disabled during Conan builds.
+
+Gate it on `PROJECT_IS_TOP_LEVEL` as well when another project may add yours as a subproject
+(`add_subdirectory` or `FetchContent`). `project-config` reads the top-level source and build trees,
+so a second copy run from inside another project resolves its docs input against the wrong root and
+defines its targets twice. The option alone cannot tell: every project that copies this block shares
+the one `INCLUDE_PROJECT_CONFIG` cache entry, which the outer project has already set.
 
 **CMakeLists.txt:**
 
 ```cmake
 option(INCLUDE_PROJECT_CONFIG "Include project-config for docs, linting, and CMake presets" ON)
-if(INCLUDE_PROJECT_CONFIG)
+if(PROJECT_IS_TOP_LEVEL AND INCLUDE_PROJECT_CONFIG)
     option(PROJECT_CONFIG_ENABLE_DOCS "Enable docs target when Doxygen is available" ON)
     option(PROJECT_CONFIG_ENABLE_CLANG_TIDY
            "Enable clang-tidy target when run-clang-tidy is available" ON)
+    set(PROJECT_CONFIG_DOCS_INPUT README.md include)
 
     add_subdirectory(project-config)
 endif()
@@ -75,7 +90,7 @@ def generate(self):
 
 ## Presets
 
-The default presets use the [Ninja](https://ninja-build.org/) generator. Ninja is used because it natively generates a `compile_commands.json` compilation database on all platforms, which is required by clang-tidy and other tooling. This ensures consistent cross-platform behavior without relying on generator-specific workarounds.
+The default presets use the [Ninja](https://ninja-build.org/) generator, which must be on `PATH`. Ninja is used because it can write a `compile_commands.json` compilation database on every platform, which clang-tidy and other tooling need; the Visual Studio generators cannot. This ensures consistent cross-platform behavior without relying on generator-specific workarounds.
 
 ### `cmake-presets/default.json`
 
@@ -91,11 +106,17 @@ inherits it, so a preset named `debug` builds in `build/debug`.
 
 ### `cmake-presets/conan.json`
 
-Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan). Including this preset sets `CMAKE_PROJECT_TOP_LEVEL_INCLUDES` to load cmake-conan's `conan_provider.cmake`, which hooks into CMake's `find_package` calls to automatically run `conan install` during configuration. Dependencies listed in your `conanfile.txt` or `conanfile.py` are resolved transparently — no changes to your `CMakeLists.txt` are required.
+Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan). Including this preset sets `CMAKE_PROJECT_TOP_LEVEL_INCLUDES` to `cmake-presets/conan-provider.cmake`, which loads cmake-conan's `conan_provider.cmake`; that provider hooks into CMake's `find_package` calls to automatically run `conan install` during configuration. Dependencies listed in your `conanfile.txt` or `conanfile.py` are resolved transparently — no changes to your `CMakeLists.txt` are required. It needs Conan 2.0.5 or newer and Git at configure time.
 
 - `conan-debug` - Conan settings for debug builds
 - `conan-release` - Conan settings for release builds
 - `conan-relwithdebinfo` - Conan settings for RelWithDebInfo builds
+
+Each installs packages for its one configuration (`Debug`, `Release` or `RelWithDebInfo`), with
+`CONAN_INSTALL_ARGS` set to
+`--build=missing`, so packages without a matching binary build from source, and to
+`-c tools.cmake.cmaketoolchain:user_presets=False`, so Conan writes no `CMakeUserPresets.json` into
+the source tree. A project that sets `CONAN_INSTALL_ARGS` itself replaces both.
 
 Each build tree keeps its own Conan cache: `cmake-presets/conan-provider.cmake`, which loads the
 provider, defaults the `CONAN_HOME` cache variable to `.conan2` in the build folder. Set
@@ -240,10 +261,11 @@ file pays nothing for it. The HTML installs to `${CMAKE_INSTALL_DOCDIR}` in the 
 component, so API docs ship exactly when a project ships its development files, and never in an
 end-user package that leaves `Development` out.
 
-`PROJECT_CONFIG_DOCS_INPUT` is required when the option is `ON`: the folders and files, relative to
-the source root, that Doxygen reads. The optional `PROJECT_CONFIG_DOCS_DEPENDS` adds generated
-inputs, such as files a Doxyfile `@INCLUDE`s, and the targets that produce them. Set both before
-adding `project-config`:
+`PROJECT_CONFIG_DOCS_INPUT` is required when the option is `ON`: the folders and files that Doxygen
+reads, as absolute paths or relative to the source root. The optional `PROJECT_CONFIG_DOCS_DEPENDS` adds generated
+inputs, such as files a Doxyfile `@INCLUDE`s, and the targets that produce them; name files in it
+by absolute path, since `project-config` passes it on from its own folder, which is where a
+relative path would resolve. Set both before adding `project-config`:
 
 ```cmake
 set(PROJECT_CONFIG_DOCS_INPUT README.md include)
@@ -252,7 +274,8 @@ add_subdirectory(project-config)
 
 ### Prerequisites
 
-- Doxygen installed and available on `PATH`
+- Doxygen 1.9.6 or newer, installed and available on `PATH`: the house tags need 1.9.5, and the
+  theme does not support that one release
 - Python 3, which runs the [GitHub Markdown Filter](#github-markdown-filter); with Doxygen found,
   configuring fails without it
 - A Doxygen configuration file at one of the following locations (checked in order):
@@ -262,7 +285,8 @@ add_subdirectory(project-config)
 The call runs Doxygen on a small wrapper Doxyfile that sets the house tags below, then includes
 yours, then sets `INPUT`, `OUTPUT_DIRECTORY` and `HTML_OUTPUT`. Doxygen keeps the last assignment
 of a tag, so your Doxyfile overrides the house tags, and the call's three tags override your
-Doxyfile: delete those three from it, since they no longer decide anything there.
+Doxyfile: delete those three from it, since they no longer decide anything there. Every other
+tag, such as `RECURSIVE`, `FILE_PATTERNS` and `EXCLUDE`, stays with your Doxyfile.
 
 ### House Look
 
@@ -272,6 +296,7 @@ point into `project-config` wherever it sits:
 | Tag | House value |
 |-----|-------------|
 | `HTML_EXTRA_STYLESHEET` | `doxygen-awesome-css/doxygen-awesome.css`, the [doxygen-awesome-css](https://github.com/jothepro/doxygen-awesome-css) theme |
+| `HTML_COLORSTYLE` | `LIGHT`, which the theme requires in place of Doxygen's default `AUTO_LIGHT`; the theme still follows the system's dark mode itself |
 | `HTML_EXTRA_FILES` | `doxygen-mermaid/mermaid.min.js`, which draws the Mermaid diagrams the filter below converts |
 | `FILTER_PATTERNS` | `*.md` through the [GitHub Markdown Filter](#github-markdown-filter) |
 | `GENERATE_TREEVIEW` | `YES` |
@@ -283,7 +308,7 @@ even empty ones such as `HTML_EXTRA_FILES =`, and each of those overrides the ho
 delete the house tags from it. A list tag takes `+=` to add to the house value instead of
 replacing it, as in `HTML_EXTRA_STYLESHEET += docs/extra.css`.
 
-The house tags are only ones every Doxygen from 1.10 on reads, since a tag a Doxygen does not know
+The house tags are only ones every Doxygen from 1.9.5 on reads, since a tag a Doxygen does not know
 draws a warning on every run.
 
 You can also use your `README.md` as the Doxygen main page and pull project metadata from CMake variables:
@@ -299,8 +324,9 @@ Since `docs/Doxyfile.in` is processed with `@ONLY` substitution, any `@VAR@` ref
 ### Further Documentation Targets
 
 The `docs` target is one call to `project_config_add_docs`, which `project-config` defines for the
-consuming project as well. Call it after `add_subdirectory(project-config)` to add another Doxygen
-run, such as a user guide beside the API docs:
+consuming project as well, whatever `PROJECT_CONFIG_ENABLE_DOCS` says. Call it after
+`add_subdirectory(project-config)` to add another Doxygen run, such as a user guide beside the API
+docs:
 
 ```cmake
 project_config_add_docs(<target> DOXYFILE <file|file.in> OUTPUT_DIR <dir> INPUT <path>...
@@ -312,7 +338,9 @@ directory's source folder (`CMAKE_CURRENT_SOURCE_DIR`), `OUTPUT_DIR` against its
 (`CMAKE_CURRENT_BINARY_DIR`), as a custom command's output does.
 
 - `DOXYFILE` — the Doxygen configuration. A path ending in `.in` is configured with `@ONLY`
-  substitution to a file of the target's own, with the caller's variables in scope.
+  substitution to a file of the target's own, with the caller's variables in scope. It gets the
+  house look and the wrapper exactly as the `docs` target's Doxyfile does, and Doxygen runs from the
+  source root, so relative paths inside it resolve against that root, not the calling folder.
 - `OUTPUT_DIR` — the HTML folder the run writes. It belongs to the target: each run deletes it and
   replaces it with exactly what that run generated, since Doxygen never deletes a page it stops
   generating, so give every docs target a folder of its own. It must be a folder inside
@@ -336,7 +364,12 @@ The filter handles:
 
 - **GFM admonitions** (`> [!NOTE]`, `> [!WARNING]`, etc.) — converted to Doxygen `@note`, `@warning`, and similar commands
 - **CI badge lines** — stripped out (they show stale status outside GitHub)
-- **Heading anchors** — adds GitHub-style `{#slug}` IDs so fragment links (e.g. `#section-name`) resolve correctly in the generated HTML
+- **Heading anchors** — gives each heading its GitHub slug as an ID, numbering a repeated heading
+  on one page as GitHub does. Doxygen's IDs are global to the site, so each ID is qualified by the
+  page's path, and the filter rewrites the links that name a heading, `[x](#slug)` on the same
+  page and `[x](other.md#slug)` across pages, to match; the source still reads correctly on
+  GitHub. A heading that states its own `{#id}` keeps it: link to it with Doxygen's `\ref id`,
+  since the filter reads every `#...` link as a GitHub slug.
 - **Mermaid fences** (` ```mermaid `) — converted to diagrams drawn in the browser by the vendored
   `doxygen-mermaid/mermaid.min.js`, so they render offline
 
@@ -357,15 +390,31 @@ When `PROJECT_CONFIG_ENABLE_CLANG_TIDY` is `ON` and `run-clang-tidy` is found, t
 
 | Target | Description |
 |--------|-------------|
-| `clang-tidy` | Run clang-tidy on all source files and report diagnostics |
-| `clang-tidy-fix` | Run clang-tidy and automatically apply suggested fixes |
+| `clang-tidy` | Run clang-tidy on every file in `compile_commands.json` that matches `PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX` and report diagnostics |
+| `clang-tidy-fix` | Run clang-tidy the same way and automatically apply suggested fixes |
 
 ### Prerequisites
 
 - `run-clang-tidy` installed and available on `PATH` (ships with LLVM/Clang)
-- A `.clang-tidy` configuration file at the project root
-- A `compile_commands.json` compilation database (automatically generated when using the default [Presets](#presets), which use the Ninja generator)
-- On Windows: Python 3 (used to invoke `run-clang-tidy` which is a Python script)
+- A `.clang-tidy` configuration file at the project root; without one, configuring warns and adds
+  neither target
+- A generator that writes `compile_commands.json`, such as the Ninja of the default
+  [Presets](#presets); `project-config` turns the database on (see the note below)
+- On Windows: Python 3 (used to invoke `run-clang-tidy` which is a Python script); configuring
+  fails without it
+
+### Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PROJECT_CONFIG_CLANG_TIDY_FILE_REGEX` | `.*` | The file regex `run-clang-tidy` selects files with (Python `re.search` over each path) |
+| `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` | the two flags below | Additional arguments passed to `run-clang-tidy` |
+
+Set them with a plain `set()` before adding `project-config`, or as cache entries on the command
+line or in a preset's `cacheVariables`. A value of
+`PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` replaces the defaults, so keep them in it where they still
+apply. On macOS, the SDK path from `xcrun --show-sdk-path` is also passed as `--sysroot`, so
+Homebrew LLVM's clang-tidy finds the system headers.
 
 By default, `PROJECT_CONFIG_CLANG_TIDY_EXTRA_ARGS` passes two defensive Clang parser flags:
 
@@ -387,6 +436,8 @@ cmake --build build/debug --target clang-tidy-fix
 
 > [!NOTE]
 > `CMAKE_EXPORT_COMPILE_COMMANDS` is automatically set to `ON` when clang-tidy targets are enabled.
+> A target takes that setting when it is created, so add `project-config` before the project's own
+> targets; one created earlier is missing from `compile_commands.json` until the next configure.
 
 ---
 
@@ -399,9 +450,14 @@ A project pinned at `3768b27` acts on these changes when it moves to the current
   `INPUT`, `OUTPUT_DIRECTORY` and `HTML_OUTPUT` itself, so delete them from the Doxyfile; the HTML
   still lands in `build/<name>/docs/html`.
 - **The house look comes from `project-config`.** Delete `HTML_EXTRA_STYLESHEET`,
-  `HTML_EXTRA_FILES`, `FILTER_PATTERNS`, `GENERATE_TREEVIEW` and `GENERATE_LATEX` from the
-  Doxyfile, empty ones included, so that it keeps only the project's own tags (see
-  [House Look](#house-look)).
+  `HTML_COLORSTYLE`, `HTML_EXTRA_FILES`, `FILTER_PATTERNS`, `GENERATE_TREEVIEW` and
+  `GENERATE_LATEX` from the Doxyfile, empty ones included, so that it keeps only the project's own
+  tags (see [House Look](#house-look)). A Doxyfile written by `doxygen -g` sets `HTML_COLORSTYLE`
+  to `AUTO_LIGHT`, which the theme does not support.
+- **CMake 3.21 or newer** runs `add_subdirectory(project-config)`, which now sets policy
+  `CMP0126`, so a plain `set()` of its clang-tidy variables takes effect on the first configure.
+- **Gate `project-config` on `PROJECT_IS_TOP_LEVEL`** in a project that others may add as a
+  subproject (see [Excluding from Conan Builds and Parent Projects](#excluding-from-conan-builds-and-parent-projects)).
 - **`DOXYGEN_HAVE_DOT` is gone.** `project-config` no longer looks for Graphviz, so
   `HAVE_DOT = @DOXYGEN_HAVE_DOT@` configures to an empty value, which Doxygen silently reads as
   `NO`. Set `HAVE_DOT` in the Doxyfile.

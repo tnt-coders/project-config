@@ -1,3 +1,8 @@
+# A consumer's plain set() of a variable this directory declares as a cache entry must win over the
+# cache default, whatever cmake_minimum_required the consumer states. Policies are scoped to this
+# directory, so the consumer's own lists keep theirs.
+cmake_policy(SET CMP0126 NEW)
+
 include(GNUInstallDirs)
 
 # Adds <target>, which brings OUTPUT_DIR up to date with a Doxygen run over DOXYFILE in every build:
@@ -109,7 +114,9 @@ function(project_config_add_docs target)
     endif()
 
     # The house look's files, which project-config ships beside this function. Only tags every
-    # Doxygen from 1.10 on reads belong in the house block, since an unknown tag warns on every run.
+    # Doxygen from 1.9.5 on reads belong in the house block, since an unknown tag warns on every
+    # run; HTML_COLORSTYLE, the newest, arrived in 1.9.5. The theme draws its own dark mode, so it
+    # needs Doxygen's color style fixed at LIGHT.
     set(house_stylesheet
         "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/doxygen-awesome-css/doxygen-awesome.css")
     set(house_script "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/doxygen-mermaid/mermaid.min.js")
@@ -134,6 +141,7 @@ function(project_config_add_docs target)
         CONTENT
         [=[
 HTML_EXTRA_STYLESHEET  = "@house_stylesheet@"
+HTML_COLORSTYLE        = LIGHT
 HTML_EXTRA_FILES       = "@house_script@"
 FILTER_PATTERNS        = "*.md=@python_head@\"@python_tail@\" \"@house_filter@\""
 GENERATE_TREEVIEW      = YES
@@ -177,15 +185,21 @@ HTML_OUTPUT            = "@output_leaf@"
 endfunction()
 
 # The project's own documentation, from docs/Doxyfile.in or else docs/Doxyfile, as the docs target.
-# PROJECT_CONFIG_DOCS_INPUT, relative to the source root, and the optional
-# PROJECT_CONFIG_DOCS_DEPENDS are its INPUT and DEPENDS.
+# PROJECT_CONFIG_DOCS_INPUT, with relative paths against the source root, and the optional
+# PROJECT_CONFIG_DOCS_DEPENDS are its INPUT and DEPENDS. DEPENDS passes through untouched, since it
+# also names targets and generator expressions, so a relative file in it resolves against this
+# folder.
 if(PROJECT_CONFIG_ENABLE_DOCS)
     if(NOT DEFINED PROJECT_CONFIG_DOCS_INPUT)
         message(FATAL_ERROR "PROJECT_CONFIG_ENABLE_DOCS needs PROJECT_CONFIG_DOCS_INPUT, the "
-                            "folders and files, relative to the source root, the docs document.")
+                            "folders and files the docs document.")
     endif()
-    list(TRANSFORM PROJECT_CONFIG_DOCS_INPUT PREPEND "${CMAKE_SOURCE_DIR}/"
-                                                     OUTPUT_VARIABLE _project_config_docs_input)
+    set(_project_config_docs_input "")
+    foreach(_project_config_input IN LISTS PROJECT_CONFIG_DOCS_INPUT)
+        cmake_path(ABSOLUTE_PATH _project_config_input BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                   NORMALIZE)
+        list(APPEND _project_config_docs_input "${_project_config_input}")
+    endforeach()
     set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile.in")
     if(NOT EXISTS "${_project_config_doxyfile}")
         set(_project_config_doxyfile "${CMAKE_SOURCE_DIR}/docs/Doxyfile")
