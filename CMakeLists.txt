@@ -23,7 +23,9 @@ include(GNUInstallDirs)
 # scope.
 #
 # Every run also gets the house look, the tags at the head of the wrapper below, set before the
-# Doxyfile is read so a tag the Doxyfile sets replaces the house value.
+# Doxyfile is read so a tag the Doxyfile sets replaces the house value. The look states HAVE_DOT
+# because Doxygen's default differs by build (Ubuntu's draws graphs); a Doxyfile that sets it to YES
+# needs Graphviz's dot wherever its docs build.
 #
 # OUTPUT_DIR belongs to the target: every run deletes it and replaces it with exactly what that run
 # generated, so it must lie inside the build tree and be a folder of its own, never one that holds
@@ -147,6 +149,7 @@ HTML_EXTRA_FILES       = "@house_script@"
 FILTER_PATTERNS        = "*.md=@python_head@\"@python_tail@\" \"@house_filter@\""
 GENERATE_TREEVIEW      = YES
 GENERATE_LATEX         = NO
+HAVE_DOT               = NO
 @INCLUDE               = "@doxyfile@"
 INPUT                  = @input_lines@
 OUTPUT_DIRECTORY       = "@output_parent@"

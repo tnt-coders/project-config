@@ -301,6 +301,7 @@ point into `project-config` wherever it sits:
 | `FILTER_PATTERNS` | `*.md` through the [GitHub Markdown Filter](#github-markdown-filter) |
 | `GENERATE_TREEVIEW` | `YES` |
 | `GENERATE_LATEX` | `NO` |
+| `HAVE_DOT` | `NO`, stated because Doxygen's default differs by build: Ubuntu's draws graphs, the others do not. Set `HAVE_DOT = YES` in your Doxyfile to draw them, with Graphviz's `dot` on `PATH` wherever the docs build |
 
 Your Doxyfile keeps only its project's own tags. To override a house tag, set it there; to keep
 the house value, leave the tag out entirely. A Doxyfile written by `doxygen -g` lists every tag,
@@ -461,9 +462,9 @@ A project pinned at `3768b27` acts on these changes when it moves to the current
   `CMP0126`, so a plain `set()` of its clang-tidy variables takes effect on the first configure.
 - **Gate `project-config` on `PROJECT_IS_TOP_LEVEL`** in a project that others may add as a
   subproject (see [Excluding from Conan Builds and Parent Projects](#excluding-from-conan-builds-and-parent-projects)).
-- **`DOXYGEN_HAVE_DOT` is gone.** `project-config` no longer looks for Graphviz, so
-  `HAVE_DOT = @DOXYGEN_HAVE_DOT@` configures to an empty value, which Doxygen silently reads as
-  `NO`. Set `HAVE_DOT` in the Doxyfile.
+- **`DOXYGEN_HAVE_DOT` is gone.** `project-config` no longer looks for Graphviz, and the house
+  look turns graphs off, so delete `HAVE_DOT = @DOXYGEN_HAVE_DOT@` from the Doxyfile. To keep
+  graphs, set `HAVE_DOT = YES` there instead.
 - **Docs build and install by default.** `docs` is part of every build, and its HTML installs to
   `${CMAKE_INSTALL_DOCDIR}` in the `Development` component, so a package that lists its components
   decides whether `Development` ships.
