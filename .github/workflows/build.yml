@@ -8,4 +8,4 @@ on:
 
 jobs:
   pre-commit:
-    uses: TNT-Music-Studios/ci-workflows/.github/workflows/pre-commit.yml@master
+    uses: tnt-music-studios/ci-workflows/.github/workflows/pre-commit.yml@master
