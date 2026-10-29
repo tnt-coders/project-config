@@ -1,10 +1,10 @@
 # project-config
 
-[![Build](https://github.com/tnt-coders/project-config/actions/workflows/build.yml/badge.svg)](https://github.com/tnt-coders/project-config/actions/workflows/build.yml)
+[![Build](https://github.com/TNT-Music-Studios/project-config/actions/workflows/build.yml/badge.svg)](https://github.com/TNT-Music-Studios/project-config/actions/workflows/build.yml)
 
 Reusable project configuration and CMake presets that can be shared across projects via Git submodules. Bundles two key submodules:
 
-- [**cmake-conan**](https://github.com/tnt-coders/cmake-conan) — A CMake dependency provider for the [Conan](https://conan.io/) C/C++ package manager. Automatically runs `conan install` during CMake configuration so dependencies are resolved without any changes to your `CMakeLists.txt`. Supports building private package recipes directly from Git when packages aren't available on a remote.
+- [**cmake-conan**](https://github.com/TNT-Music-Studios/cmake-conan) — A CMake dependency provider for the [Conan](https://conan.io/) C/C++ package manager. Automatically runs `conan install` during CMake configuration so dependencies are resolved without any changes to your `CMakeLists.txt`. Supports building private package recipes directly from Git when packages aren't available on a remote.
 - [**doxygen-awesome-css**](https://github.com/jothepro/doxygen-awesome-css) — A modern, professional theme for [Doxygen](https://www.doxygen.nl/)-generated documentation, with a clean responsive layout that follows the system's dark mode. `project-config` applies its stylesheet to every docs target; the theme's optional JavaScript extensions, such as code copy buttons and an interactive table of contents, are left to a Doxyfile that wants them.
 
 By adding `project-config` as a single submodule, your project gains Conan package management, professional documentation, linting targets, and standardized CMake presets with minimal setup.
@@ -15,7 +15,7 @@ Add this repository as a submodule named `project-config` at your project root, 
 its own submodules:
 
 ```bash
-git submodule add https://github.com/tnt-coders/project-config.git
+git submodule add https://github.com/TNT-Music-Studios/project-config.git
 git submodule update --init --recursive
 ```
 
@@ -106,7 +106,7 @@ inherits it, so a preset named `debug` builds in `build/debug`.
 
 ### `cmake-presets/conan.json`
 
-Provides Conan package manager integration via [cmake-conan](https://github.com/tnt-coders/cmake-conan). Including this preset sets `CMAKE_PROJECT_TOP_LEVEL_INCLUDES` to `cmake-presets/conan-provider.cmake`, which loads cmake-conan's `conan_provider.cmake`; that provider hooks into CMake's `find_package` calls to automatically run `conan install` during configuration. Dependencies listed in your `conanfile.txt` or `conanfile.py` are resolved transparently — no changes to your `CMakeLists.txt` are required. It needs Conan 2.0.5 or newer and Git at configure time.
+Provides Conan package manager integration via [cmake-conan](https://github.com/TNT-Music-Studios/cmake-conan). Including this preset sets `CMAKE_PROJECT_TOP_LEVEL_INCLUDES` to `cmake-presets/conan-provider.cmake`, which loads cmake-conan's `conan_provider.cmake`; that provider hooks into CMake's `find_package` calls to automatically run `conan install` during configuration. Dependencies listed in your `conanfile.txt` or `conanfile.py` are resolved transparently — no changes to your `CMakeLists.txt` are required. It needs Conan 2.0.5 or newer and Git at configure time.
 
 - `conan-debug` - Conan settings for debug builds
 - `conan-release` - Conan settings for release builds
@@ -186,7 +186,7 @@ Include the desired preset files in your project's `CMakePresets.json` and inher
 
 ### Example with Conan
 
-Including the `conan.json` presets automatically integrates [cmake-conan](https://github.com/tnt-coders/cmake-conan) into the project for dependency management.
+Including the `conan.json` presets automatically integrates [cmake-conan](https://github.com/TNT-Music-Studios/cmake-conan) into the project for dependency management.
 
 ```json
 {
